@@ -81,12 +81,12 @@ diy-authentication-project/
 
 ## Security Features
 
-- Password hashing using bcrypt
-- JWT token validation
-- CSRF protection
-- Input validation
-- Rate limiting
-- Secure session management
+- Password hashing using bcrypt (Done)
+- JWT token validation //@Todo
+- CSRF protection //@Todo
+- Input validation //@Todo
+- Rate limiting //@Todo
+- Secure session management //@Todo
 
 ## API Endpoints
 
@@ -98,14 +98,14 @@ diy-authentication-project/
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+2. Create your feature branch (`git checkout -b feature/AmazonFeature`)
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
 ## License
 
-This project is open source and available under the MIT License.
+This project is open source.
 
 ## Acknowledgments
 
