@@ -19,7 +19,7 @@ https://docs.google.com/presentation/d/1sBi5AGHguswuyPuFN94yphvb2Nhwv2qWZI81wZ1d
 
 - Backend: Spring Boot
 - Frontend: HTML, CSS, JavaScript
-- Database: [Specify your database]
+- Database: MongoDB
 - Authentication: JWT
 - Security: Spring Security
 - Build Tool: Maven/Gradle
