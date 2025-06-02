@@ -2,6 +2,10 @@
 
 A practical implementation of authentication and authorization techniques using modern web technologies.
 
+# Notes on Identity and Access Manaagement (terminologies and introduction)
+
+https://docs.google.com/presentation/d/1sBi5AGHguswuyPuFN94yphvb2Nhwv2qWZI81wZ1dW84
+
 ## Features
 
 - User registration and login
