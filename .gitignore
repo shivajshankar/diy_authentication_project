@@ -1,10 +1,8 @@
-# Compiled class file
+# Java
 *.class
-
-# Log file
 *.log
-
-# Package Files
+*.ctxt
+.mtj.tmp/
 *.jar
 *.war
 *.nar
@@ -12,30 +10,87 @@
 *.zip
 *.tar.gz
 *.rar
-
-# virtual machine crash logs
 hs_err_pid*
+replay_pid*
 
 # Maven
 target/
 .m2/
 
-# Gradle
-.gradle/
-build/
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+.idea_modules/
+
+# Eclipse
+.settings/
+.classpath
+.project
+
+# VS Code
+.vscode/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# React
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local development env files
+.env
 
 # IDE specific files
 .idea/
-*.iml
-*.ipr
-*.iws
-.classpath
-.project
-.settings/
 .vscode/
-*.launch
-.factorypath
-.springBeans
+*.swp
+*.swo
+
+# Keep nodejs/loginscreen but ignore node_modules and build artifacts
+!nodejs/loginscreen/
+nodejs/loginscreen/node_modules/
+nodejs/loginscreen/build/
+nodejs/loginscreen/.env
+nodejs/loginscreen/.env.local
+nodejs/loginscreen/coverage/
+nodejs/loginscreen/.pnp
+nodejs/loginscreen/.pnp.js
+nodejs/loginscreen/npm-debug.log*
+nodejs/loginscreen/yarn-debug.log*
+nodejs/loginscreen/yarn-error.log*
+
+# Keep all other files in nodejs/loginscreen/src
+!nodejs/loginscreen/src/
+!nodejs/loginscreen/public/
+!nodejs/loginscreen/package.json
+!nodejs/loginscreen/package-lock.json
+!nodejs/loginscreen/README.md
 
 # Spring Boot specific
 application*.properties
@@ -64,7 +119,6 @@ apply_sensitive_info.sh
 *.cer
 
 # Environment files
-.env
 .env.*
 !.env.example
 
@@ -76,10 +130,6 @@ apply_sensitive_info.sh
 .Trashes
 ehthumbs.db
 Thumbs.db
-
-# Logs
-logs/
-*.log
 
 # Temp files
 *.swp
