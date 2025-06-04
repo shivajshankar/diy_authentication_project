@@ -5,8 +5,10 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
 // Create a single axios instance
 const api = axios.create({
   baseURL: API_URL,
+  withCredentials: true,  // Important for sending cookies
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
 });
 
