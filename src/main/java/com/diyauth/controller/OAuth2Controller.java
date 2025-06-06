@@ -47,8 +47,8 @@ public class OAuth2Controller {
             name = email.split("@")[0];
         }
 
-        // Build the redirect URL
-        String frontendUrl = "http://localhost:3000";
+        @Value("${app.frontend.url}")
+        private String frontendUrl;
         String redirectUrl = String.format(
             "%s/oauth2/redirect?token=%s&email=%s&name=%s",
             frontendUrl,
