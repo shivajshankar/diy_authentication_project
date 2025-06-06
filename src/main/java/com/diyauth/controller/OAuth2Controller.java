@@ -1,6 +1,7 @@
 package com.diyauth.controller;
 
 import com.diyauth.security.JwtTokenProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -18,6 +19,9 @@ import java.nio.charset.StandardCharsets;
 public class OAuth2Controller {
 
     private final JwtTokenProvider tokenProvider;
+    
+    @Value("${app.frontend-url:http://localhost:3000}")
+    private String frontendUrl;
 
     public OAuth2Controller(JwtTokenProvider tokenProvider) {
         this.tokenProvider = tokenProvider;
@@ -47,8 +51,6 @@ public class OAuth2Controller {
             name = email.split("@")[0];
         }
 
-        @Value("${app.frontend.url}")
-        private String frontendUrl;
         String redirectUrl = String.format(
             "%s/oauth2/redirect?token=%s&email=%s&name=%s",
             frontendUrl,
@@ -71,7 +73,6 @@ public class OAuth2Controller {
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
-        String frontendUrl = "http://localhost:3000";
         String errorMessage = error != null ? error : "OAuth2 login failed";
         String redirectUrl = String.format(
             "%s/login?error=%s",
