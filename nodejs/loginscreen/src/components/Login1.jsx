@@ -144,11 +144,6 @@ const Login1 = () => {
                     Sign in with SSO
                   </Link>
                 </p>
-                <p className="mb-0">
-                  <Link to="/register1" className="text-decoration-none">
-                    Test Register1 Link
-                  </Link>
-                </p>
               </div>
             </div>
           </div>

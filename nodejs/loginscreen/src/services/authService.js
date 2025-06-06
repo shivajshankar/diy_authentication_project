@@ -186,12 +186,35 @@ const getCurrentUser = async () => {
 // Add OAuth2 login handler
 const handleOAuthCallback = async () => {
   try {
-    const response = await api.get('/oauth2/success');
-    if (response.data.token) {
-      localStorage.setItem('authToken', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data));
+    // Check if we have token in URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const email = urlParams.get('email');
+    const name = urlParams.get('name');
+
+    if (token && email) {
+      // We have the token in the URL, store it and return user data
+      const userData = {
+        token,
+        user: {
+          email,
+          name,
+          // Add any other user data you need
+        }
+      };
+      
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      return userData;
+    } else {
+      // Fallback to the API call if no token in URL
+      const response = await api.get('/oauth2/success');
+      if (response.data.token) {
+        localStorage.setItem('authToken', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data));
+      }
+      return response.data;
     }
-    return response.data;
   } catch (error) {
     console.error('OAuth callback error:', error);
     throw error;

@@ -31,58 +31,107 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest oAuth2UserRequest) throws OAuth2AuthenticationException {
-        OAuth2User oAuth2User = super.loadUser(oAuth2UserRequest);
-
         try {
+            OAuth2User oAuth2User = super.loadUser(oAuth2UserRequest);
             return processOAuth2User(oAuth2UserRequest, oAuth2User);
-        } catch (AuthenticationException ex) {
+        } catch (OAuth2AuthenticationException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new InternalAuthenticationServiceException(ex.getMessage(), ex.getCause());
+            // Wrap any other exception and include the original exception as the cause
+            throw new InternalAuthenticationServiceException("OAuth2 authentication failed: " + ex.getMessage(), ex);
         }
     }
 
     private OAuth2User processOAuth2User(OAuth2UserRequest oAuth2UserRequest, OAuth2User oAuth2User) {
-        String registrationId = oAuth2UserRequest.getClientRegistration().getRegistrationId();
-        OAuth2UserInfo oAuth2UserInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(registrationId, oAuth2User.getAttributes());
+        try {
+            String registrationId = oAuth2UserRequest.getClientRegistration().getRegistrationId();
+            
+            // Debug: Print OAuth2 user attributes
+            System.out.println("OAuth2 User Attributes: " + oAuth2User.getAttributes());
+            
+            OAuth2UserInfo oAuth2UserInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(
+                registrationId, 
+                oAuth2User.getAttributes()
+            );
 
-        if (!StringUtils.hasText(oAuth2UserInfo.getEmail())) {
-            throw new OAuth2AuthenticationProcessingException("Email not found from OAuth2 provider");
-        }
-
-        Optional<User> userOptional = userRepository.findByEmail(oAuth2UserInfo.getEmail());
-        User user;
-        if (userOptional.isPresent()) {
-            user = userOptional.get();
-            if (!user.getProvider().equals(AuthProvider.valueOf(registrationId).name())) {
-                throw new OAuth2AuthenticationProcessingException("Looks like you're signed up with " +
-                        user.getProvider() + " account. Please use your " + user.getProvider() +
-                        " account to login.");
+            if (oAuth2UserInfo == null) {
+                throw new OAuth2AuthenticationProcessingException("Failed to create OAuth2 user info");
             }
-            user = updateExistingUser(user, oAuth2UserInfo);
-        } else {
-            user = registerNewUser(oAuth2UserRequest, oAuth2UserInfo);
-        }
 
-        UserPrincipal userPrincipal = UserPrincipal.create(user, oAuth2User.getAttributes());
-        String token = tokenProvider.generateToken(userPrincipal.getUsername());
-        userPrincipal.getAttributes().put("token", token);
-        
-        return userPrincipal;
+            if (!StringUtils.hasText(oAuth2UserInfo.getEmail())) {
+                throw new OAuth2AuthenticationProcessingException("Email not found from OAuth2 provider");
+            }
+
+            String email = oAuth2UserInfo.getEmail();
+            Optional<User> userOptional = userRepository.findByEmail(email);
+            
+            User user;
+            if (userOptional.isPresent()) {
+                user = userOptional.get();
+                String provider = AuthProvider.valueOf(registrationId).name();
+                if (!user.getProvider().equals(provider)) {
+                    throw new OAuth2AuthenticationProcessingException(
+                        String.format("Looks like you're signed up with %s account. Please use your %s account to login.", 
+                        user.getProvider(), user.getProvider())
+                    );
+                }
+                user = updateExistingUser(user, oAuth2UserInfo);
+            } else {
+                user = registerNewUser(oAuth2UserRequest, oAuth2UserInfo);
+            }
+
+            // Generate JWT token
+            String token = tokenProvider.generateToken(user.getEmail());
+            
+            // Create a new mutable map with the existing attributes
+            Map<String, Object> attributes = new HashMap<>(oAuth2User.getAttributes());
+            // Add the token to the attributes
+            attributes.put("token", token);
+            
+            // Create user principal with the new attributes map
+            UserPrincipal userPrincipal = UserPrincipal.create(user, attributes);
+            
+            return userPrincipal;
+            
+        } catch (OAuth2AuthenticationException ex) {
+            System.err.println("OAuth2 Authentication Error: " + ex.getMessage());
+            throw ex;
+        } catch (Exception ex) {
+            System.err.println("Error in processOAuth2User: " + ex.getClass().getName() + ": " + ex.getMessage());
+            ex.printStackTrace();
+            throw new OAuth2AuthenticationProcessingException("Error processing OAuth2 user: " + ex.getMessage(), ex);
+        }
     }
 
     private User registerNewUser(OAuth2UserRequest oAuth2UserRequest, OAuth2UserInfo oAuth2UserInfo) {
-        User user = new User();
-        user.setProvider(AuthProvider.valueOf(oAuth2UserRequest.getClientRegistration().getRegistrationId()).name());
-        user.setProviderId(oAuth2UserInfo.getId());
-        user.setUsername(oAuth2UserInfo.getEmail().split("@")[0]);
-        user.setEmail(oAuth2UserInfo.getEmail());
-        user.setImageUrl(oAuth2UserInfo.getImageUrl());
-        return userRepository.save(user);
+        try {
+            User user = new User();
+            String registrationId = oAuth2UserRequest.getClientRegistration().getRegistrationId();
+            
+            user.setProvider(AuthProvider.valueOf(registrationId).name());
+            user.setProviderId(oAuth2UserInfo.getId());
+            user.setUsername(oAuth2UserInfo.getEmail().split("@")[0]);
+            user.setEmail(oAuth2UserInfo.getEmail());
+            user.setImageUrl(oAuth2UserInfo.getImageUrl());
+            
+            // Set default role or any other required fields
+            // user.setActive(true);  // Removed as it doesn't exist in User class
+            
+            return userRepository.save(user);
+            
+        } catch (Exception ex) {
+            System.err.println("Error registering new user: " + ex.getMessage());
+            throw new OAuth2AuthenticationProcessingException("Failed to register new user: " + ex.getMessage(), ex);
+        }
     }
 
     private User updateExistingUser(User existingUser, OAuth2UserInfo oAuth2UserInfo) {
-        existingUser.setImageUrl(oAuth2UserInfo.getImageUrl());
-        return userRepository.save(existingUser);
+        try {
+            existingUser.setImageUrl(oAuth2UserInfo.getImageUrl());
+            return userRepository.save(existingUser);
+        } catch (Exception ex) {
+            System.err.println("Error updating existing user: " + ex.getMessage());
+            throw new OAuth2AuthenticationProcessingException("Failed to update existing user: " + ex.getMessage(), ex);
+        }
     }
 }

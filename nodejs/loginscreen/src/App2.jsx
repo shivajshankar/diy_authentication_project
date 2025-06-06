@@ -7,6 +7,7 @@ import LoginSSO from './components/LoginSSO';
 import Register from './components/Register';
 import Register1 from './components/Register1';
 import Dashboard from './components/Dashboard';
+import OAuth2RedirectHandler from './components/OAuth2RedirectHandler';
 import { useAuth } from './context/AuthContext';
 
 console.log('App2.jsx: Loading with enhanced logging');
@@ -106,6 +107,11 @@ function App() {
           <ProtectedRoute>
             <Dashboard />
           </ProtectedRoute>
+        } />
+        
+        {/* OAuth2 callback route */}
+        <Route path="/oauth2/redirect" element={
+          <OAuth2RedirectHandler />
         } />
         
         {/* Default route */}

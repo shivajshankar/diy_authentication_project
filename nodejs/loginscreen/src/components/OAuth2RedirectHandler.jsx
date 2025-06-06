@@ -11,9 +11,15 @@ const OAuth2RedirectHandler = () => {
   useEffect(() => {
     const processOAuthCallback = async () => {
       try {
+        // Process the OAuth callback
         const response = await handleOAuthCallback();
         
+        // Clean up the URL by removing the OAuth parameters
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        
         if (response && response.token && response.user) {
+          // Log in the user
           login(response.user, response.token);
           navigate('/dashboard');
         } else {
