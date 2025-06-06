@@ -62,6 +62,10 @@ public class SecurityConfig {
         http
             .cors().and()
             .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+                .sessionFixation().migrateSession()
+            )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/",
@@ -69,8 +73,8 @@ public class SecurityConfig {
                     "/manifest.json",
                     "/static/**",
                     "/favicon.ico",
-                    "/api/auth/**", 
-                    "/oauth2/**", 
+                    "/api/auth/**",
+                    "/oauth2/**",
                     "/login/oauth2/**",
                     "/api/oauth2/**",
                     "/error"
@@ -93,7 +97,7 @@ public class SecurityConfig {
                 })
                 .failureHandler((request, response, exception) -> {
                     String targetUrl = "/api/oauth2/failure?error=" + URLEncoder.encode(
-                        exception.getMessage() != null ? exception.getMessage() : "OAuth2 login failed", 
+                        exception.getMessage() != null ? exception.getMessage() : "OAuth2 login failed",
                         StandardCharsets.UTF_8);
                     response.sendRedirect(targetUrl);
                 })
@@ -113,10 +117,12 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.addAllowedOriginPattern("*");
+        config.addAllowedOrigin("http://shivajshankar.duckdns.org:3000");
+        config.addAllowedOrigin("http://localhost:3000");
         config.addAllowedHeader("*");
         config.addExposedHeader("Authorization");
         config.addAllowedMethod("*");
+        config.setMaxAge(3600L);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
