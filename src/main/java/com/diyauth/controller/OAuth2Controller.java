@@ -33,19 +33,36 @@ public class OAuth2Controller {
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
+        System.out.println("\n=== OAuth2 Success Handler ===");
+        
         if (oauth2User == null) {
+            System.out.println("ERROR: OAuth2User is null in success handler");
             response.sendError(HttpStatus.UNAUTHORIZED.value(), "Authentication failed");
             return;
         }
 
+        System.out.println("OAuth2User Name: " + oauth2User.getName());
+        System.out.println("OAuth2User Attributes: " + oauth2User.getAttributes().keySet());
+        
+        // Debug: Print all attributes
+        System.out.println("\n=== All OAuth2User Attributes ===");
+        oauth2User.getAttributes().forEach((k, v) -> 
+            System.out.println(k + ": " + v)
+        );
+
         String email = oauth2User.getAttribute("email");
         if (email == null) {
+            System.out.println("ERROR: Email not found in OAuth2 user attributes");
             response.sendError(HttpStatus.BAD_REQUEST.value(), "Email not found in OAuth2 user");
             return;
         }
 
-        // Create JWT token
-        String token = tokenProvider.generateToken(email);
+        // Get the JWT token that was set in CustomOAuth2UserService
+        String token = oauth2User.getAttribute("token");
+        System.out.println("\n=== Retrieved JWT Token ===");
+        System.out.println("Token from attributes: " + token);
+        System.out.println("Token class: " + (token != null ? token.getClass().getName() : "null"));
+
         String name = oauth2User.getAttribute("name");
         if (name == null) {
             name = email.split("@")[0];
@@ -54,11 +71,14 @@ public class OAuth2Controller {
         String redirectUrl = String.format(
             "%s/oauth2/redirect?token=%s&email=%s&name=%s",
             frontendUrl,
-            URLEncoder.encode(token, StandardCharsets.UTF_8),
+            token != null ? URLEncoder.encode(token, StandardCharsets.UTF_8) : "",
             URLEncoder.encode(email, StandardCharsets.UTF_8),
             URLEncoder.encode(name, StandardCharsets.UTF_8)
         );
 
+        System.out.println("\n=== Redirecting to Frontend ===");
+        System.out.println("Redirect URL: " + redirectUrl);
+        
         // Add CORS headers
         response.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
         response.setHeader("Access-Control-Allow-Credentials", "true");

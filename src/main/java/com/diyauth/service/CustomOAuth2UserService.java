@@ -47,7 +47,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             String registrationId = oAuth2UserRequest.getClientRegistration().getRegistrationId();
             
             // Debug: Print OAuth2 user attributes
-            System.out.println("OAuth2 User Attributes: " + oAuth2User.getAttributes());
+            System.out.println("\n=== OAuth2 User Attributes ===");
+            oAuth2User.getAttributes().forEach((k, v) -> 
+                System.out.println(k + ": " + v)
+            );
             
             OAuth2UserInfo oAuth2UserInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(
                 registrationId, 
@@ -81,15 +84,19 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             }
 
             // Generate JWT token
+            System.out.println("\n=== Generating JWT Token ===");
             String token = tokenProvider.generateToken(user.getEmail());
+            System.out.println("Generated JWT Token: " + token);
             
             // Create a new mutable map with the existing attributes
             Map<String, Object> attributes = new HashMap<>(oAuth2User.getAttributes());
             // Add the token to the attributes
             attributes.put("token", token);
+            System.out.println("Added token to user attributes. Attributes size: " + attributes.size());
             
             // Create user principal with the new attributes map
             UserPrincipal userPrincipal = UserPrincipal.create(user, attributes);
+            System.out.println("Created UserPrincipal with username: " + userPrincipal.getUsername());
             
             return userPrincipal;
             
