@@ -15,7 +15,7 @@ import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/api/oauth2")
-@CrossOrigin(origins = "${app.cors.allowed-origins}", allowCredentials = "true")
+@CrossOrigin(origins = "${cors.allowed-origins}", allowCredentials = "true")
 public class OAuth2Controller {
 
     private final JwtTokenProvider tokenProvider;

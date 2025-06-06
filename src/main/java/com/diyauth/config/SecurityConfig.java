@@ -39,7 +39,7 @@ public class SecurityConfig {
     private final JwtTokenProvider tokenProvider;
     private final CustomOAuth2UserService customOAuth2UserService;
 
-    @Value("${app.cors.allowed-origins}")
+    @Value("${cors.allowed-origins}")
     private String[] allowedOrigins;
 
     @Bean
@@ -96,6 +96,25 @@ public class SecurityConfig {
                     request.getRequestDispatcher(targetUrl).forward(request, response);
                 })
                 .failureHandler((request, response, exception) -> {
+                    System.out.println("\n=== OAuth2 Authentication Failure ===");
+                    System.out.println("Error: " + exception.getMessage());
+                    System.out.println("Request URL: " + request.getRequestURL());
+                    System.out.println("Query String: " + request.getQueryString());
+                    System.out.println("Session ID: " + (request.getSession(false) != null ? request.getSession().getId() : "No session"));
+                    
+                    // Print all request parameters
+                    System.out.println("Request Parameters:");
+                    request.getParameterMap().forEach((key, values) -> {
+                        System.out.println("  " + key + " = " + String.join(", ", values));
+                    });
+                    
+                    // Print important headers
+                    System.out.println("Headers:");
+                    System.out.println("  Host: " + request.getHeader("Host"));
+                    System.out.println("  Origin: " + request.getHeader("Origin"));
+                    System.out.println("  Referer: " + request.getHeader("Referer"));
+                    System.out.println("  Cookie: " + request.getHeader("Cookie"));
+                    
                     String targetUrl = "/api/oauth2/failure?error=" + URLEncoder.encode(
                         exception.getMessage() != null ? exception.getMessage() : "OAuth2 login failed",
                         StandardCharsets.UTF_8);
