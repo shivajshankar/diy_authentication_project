@@ -124,6 +124,8 @@ apply_sensitive_info_prod.sh
 *.env
 .env.*
 !.env.example
+!nodejs/loginscreen/.env.development
+!nodejs/loginscreen/.env.production
 
 # Environment files
 !.env.example
