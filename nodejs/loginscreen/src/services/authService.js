@@ -46,38 +46,73 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Only clear and redirect if we're not already on the login page
-      if (!window.location.pathname.includes('login')) {
+      if (!window.location.pathname.includes('login1')) {
         localStorage.removeItem('authToken');
         localStorage.removeItem('user');
         currentUserRequest = null;
-        window.location.href = '/';
+        window.location.href = '/login1';
       }
     }
     return Promise.reject(error);
   }
 );
 
+/**
+ * Logs in a user with username and password
+ * @param {string} username - The user's username
+ * @param {string} password - The user's password
+ * @returns {Promise<Object>} The user data and access token
+ */
 const login = async (username, password) => {
   try {
-    const response = await api.post('/auth/signin', { username, password });
+    console.log('authService: Sending login request for user:', username);
+    const response = await api.post('/auth/signin', {
+      username,
+      password
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      withCredentials: false
+    });
+    
+    console.log('authService: Login response received', {
+      hasToken: !!response?.data?.accessToken,
+      userId: response?.data?.id
+    });
     
     if (response.data.accessToken) {
-      localStorage.setItem('authToken', response.data.accessToken);
-      
       const userData = {
         id: response.data.id,
-        username: response.data.username,
-        email: response.data.email
+        username: response.data.username || username.split('@')[0],
+        email: response.data.email || username
       };
       
-      localStorage.setItem('user', JSON.stringify(userData));
-      return userData;
+      console.log('Login successful:', { user: userData });
+      
+      // Return the response data which will be handled by the Login component
+      return {
+        ...response.data,
+        user: userData
+      };
     }
     
     throw new Error('No access token received');
   } catch (error) {
-    console.error('Login error:', error);
-    throw error.response?.data?.message || 'Login failed. Please check your credentials.';
+    console.error('authService: Login error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    // Enhance the error with more context
+    const errorMessage = error.response?.data?.message || 
+                        error.message || 
+                        'Login failed. Please try again.';
+    const enhancedError = new Error(errorMessage);
+    enhancedError.response = error.response;
+    throw enhancedError;
   }
 };
 
@@ -93,7 +128,7 @@ const logout = () => {
   lastRequestTime = 0;
   
   // Redirect to login page
-  window.location.href = '/';
+  window.location.href = '/login1';
 };
 
 const getCurrentUser = async () => {
@@ -148,4 +183,49 @@ const getCurrentUser = async () => {
   }
 };
 
-export { login, register, logout, getCurrentUser, getStoredUser };
+// Add OAuth2 login handler
+const handleOAuthCallback = async () => {
+  try {
+    const response = await api.get('/oauth2/success');
+    if (response.data.token) {
+      localStorage.setItem('authToken', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data));
+    }
+    return response.data;
+  } catch (error) {
+    console.error('OAuth callback error:', error);
+    throw error;
+  }
+};
+
+// Get OAuth login URL
+const getOAuthLoginUrl = (provider = 'google') => {
+  return `${API_URL.replace('/api', '')}/oauth2/authorization/${provider}`;
+};
+
+const authService = {
+  login,
+  register,
+  logout,
+  getCurrentUser,
+  getStoredUser,
+  handleOAuthCallback,
+  getOAuthLoginUrl
+};
+
+// Make authService available globally for debugging
+if (typeof window !== 'undefined') {
+  window.authService = authService;
+}
+
+export { 
+  login, 
+  register, 
+  logout, 
+  getCurrentUser, 
+  getStoredUser, 
+  handleOAuthCallback, 
+  getOAuthLoginUrl 
+};
+
+export default authService;

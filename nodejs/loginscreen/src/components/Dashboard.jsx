@@ -13,7 +13,8 @@ function Dashboard() {
   const loadUser = useCallback(async () => {
     const token = localStorage.getItem('authToken');
     if (!token) {
-      navigate('/');
+      console.log('No auth token found, redirecting to login');
+      navigate('/login1');
       return null;
     }
 
@@ -24,12 +25,17 @@ function Dashboard() {
         setUser(storedUser);
       }
 
-      // Fetch fresh data
-      const userData = await getCurrentUser();
-      return userData;
+      // Fetch fresh data but don't wait for it to render
+      getCurrentUser()
+        .then(userData => {
+          if (userData) setUser(userData);
+        })
+        .catch(console.error);
+
+      return storedUser; // Return immediately with stored user
     } catch (err) {
-      console.error('Error loading user:', err);
-      throw err;
+      console.error('Error in loadUser:', err);
+      return null;
     }
   }, [navigate]);
 

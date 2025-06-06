@@ -2,30 +2,30 @@ import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
-import Login from './components/Login';
+import Login1 from './components/Login1';
 import LoginSSO from './components/LoginSSO';
 import Register from './components/Register';
 import Register1 from './components/Register1';
 import Dashboard from './components/Dashboard';
 import { useAuth } from './context/AuthContext';
 
-console.log('%cApp.jsx Version: 2.0.REFACTORED', 'color: magenta; font-size: 1.2em; font-weight: bold;');
-console.log('App.jsx: File is loading!');
+console.log('App2.jsx: Loading with enhanced logging');
 
-// Debug component to log route changes
+// Debug component
 const RouteLogger = () => {
   const location = useLocation();
   
   useEffect(() => {
     console.log('Route changed to:', location.pathname);
   }, [location]);
+  
   return null;
 };
 
 // A simple wrapper that uses the auth context for protection
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-  console.log(`ProtectedRoute: isAuthenticated=${isAuthenticated}, loading=${loading}`);
+  console.log('ProtectedRoute:', { isAuthenticated, loading });
 
   if (loading) {
     return (
@@ -38,7 +38,7 @@ const ProtectedRoute = ({ children }) => {
   }
 
   if (!isAuthenticated) {
-    console.log('ProtectedRoute: Not authenticated, redirecting to /login1');
+    console.log('ProtectedRoute: Not authenticated, redirecting to login');
     return <Navigate to="/login1" replace state={{ from: window.location.pathname }} />;
   }
 
@@ -48,7 +48,7 @@ const ProtectedRoute = ({ children }) => {
 // A wrapper for public-only routes (login, register, etc.)
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-  console.log(`PublicRoute: isAuthenticated=${isAuthenticated}, loading=${loading}`);
+  console.log('PublicRoute:', { isAuthenticated, loading });
 
   if (loading) {
     return (
@@ -61,7 +61,7 @@ const PublicRoute = ({ children }) => {
   }
 
   if (isAuthenticated) {
-    console.log('PublicRoute: Already authenticated, redirecting to /dashboard');
+    console.log('PublicRoute: Already authenticated, redirecting to dashboard');
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -84,7 +84,7 @@ function App() {
         
         <Route path="/login1" element={
           <PublicRoute>
-            <Login />
+            <Login1 />
           </PublicRoute>
         } />
         
@@ -108,22 +108,9 @@ function App() {
           </ProtectedRoute>
         } />
         
-        {/* OAuth callback route */}
-        <Route path="/oauth2/redirect" element={
-          <div>Processing OAuth2 login...</div>
-        } />
-        
         {/* Default route */}
         <Route path="/" element={
-          <PublicRoute>
-            {({ isAuthenticated }) => (
-              isAuthenticated ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <Navigate to="/login1" replace />
-              )
-            )}
-          </PublicRoute>
+          <Navigate to="/login1" replace />
         } />
         
         {/* Catch all other routes */}

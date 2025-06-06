@@ -118,8 +118,14 @@ apply_sensitive_info.sh
 *.csr
 *.cer
 
-# Environment files
+# Sensitive info files
+apply_sensitive_info.sh
+apply_sensitive_info_prod.sh
+*.env
 .env.*
+!.env.example
+
+# Environment files
 !.env.example
 
 # OS specific

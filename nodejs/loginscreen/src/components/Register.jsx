@@ -55,7 +55,7 @@ function Register() {
               <div className="card-body text-center">
                 <h2 className="mb-4">Registration Successful!</h2>
                 <p className="mb-4">Your account has been created successfully.</p>
-                <Link to="/login" className="btn btn-primary">
+                <Link to="/login1" className="btn btn-primary">
                   Go to Login
                 </Link>
               </div>
@@ -148,7 +148,7 @@ function Register() {
                   </button>
                 </div>
                 <div className="text-center mt-3">
-                  <Link to="/login" className="text-decoration-none">
+                  <Link to="/login1" className="text-decoration-none">
                     Already have an account? Login
                   </Link>
                 </div>
