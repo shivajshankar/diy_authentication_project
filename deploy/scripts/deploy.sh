@@ -1,34 +1,50 @@
 #!/bin/bash
 set -e
 
-# Apply all configurations in order
-echo "Applying Kubernetes configurations..."
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${GREEN}Starting Kubernetes deployment...${NC}"
+
+# Function to apply configurations if directory exists
+apply_if_exists() {
+    local config_type=$1
+    local dir_path=$2
+    
+    if [ -d "$dir_path" ] && [ "$(ls -A $dir_path 2>/dev/null)" ]; then
+        echo -e "${GREEN}Applying ${config_type}...${NC}"
+        kubectl apply -f "$dir_path"
+    else
+        echo -e "${YELLOW}Skipping ${config_type} - ${dir_path} not found or empty${NC}"
+        return 0
+    fi
+}
 
 # 1. Create namespace
-echo "Creating namespace..."
-kubectl apply -f k3s/namespaces/
+apply_if_exists "namespace" "k3s/namespaces/"
 
 # 2. Apply ConfigMaps
-echo "Applying ConfigMaps..."
-kubectl apply -f k3s/configs/
+apply_if_exists "ConfigMaps" "k3s/configs/"
 
-# 3. Apply Secrets
-echo "Applying Secrets..."
-kubectl apply -f k3s/secrets/
+# 3. Apply Secrets (will be skipped if directory doesn't exist)
+# Note: Secrets are now created directly in the GitHub Actions workflow
+apply_if_exists "Secrets" "k3s/secrets/"
 
 # 4. Deploy applications
-echo "Deploying applications..."
-kubectl apply -f k3s/deployments/
+apply_if_exists "deployments" "k3s/deployments/"
 
 # 5. Create services
-echo "Creating services..."
-kubectl apply -f k3s/services/
+apply_if_exists "services" "k3s/services/"
 
 # 6. Set up ingress
-echo "Setting up ingress..."
-kubectl apply -f k3s/ingresses/
+apply_if_exists "ingress" "k3s/ingresses/"
 
-echo "Deployment complete!"
-echo "Check the status of your deployments with: kubectl get pods -n auth-app"
-echo "Check services with: kubectl get svc -n auth-app"
-echo "Check ingress with: kubectl get ingress -n auth-app"
+# 7. Verify deployment
+echo -e "\n${GREEN}=== Deployment Status ===${NC}"
+kubectl get pods,svc,ingress -n auth-app
+
+echo -e "\n${GREEN}Deployment completed successfully!${NC}"
+echo -e "Frontend URL: ${FRONTEND_URL:-Not set}"
+echo -e "Backend API: ${BACKEND_URL:-Not set}"

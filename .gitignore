@@ -162,8 +162,8 @@ Thumbs.db
 HELP.md
 
 # Kubernetes Secrets
-deploy/k3s/secrets/
-
+deploy/k3s/secrets/*
+!deploy/k3s/secrets/.gitkeep
 # Git
 .gitattributes
 .gitkeep
