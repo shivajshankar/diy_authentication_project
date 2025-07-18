@@ -13,11 +13,28 @@ apply_if_exists() {
     local config_type=$1
     local dir_path=$2
     
-    if [ -d "$dir_path" ] && [ "$(ls -A $dir_path 2>/dev/null)" ]; then
-        echo -e "${GREEN}Applying ${config_type}...${NC}"
-        kubectl apply -f "$dir_path"
+    if [ -d "$dir_path" ]; then
+        # Skip if directory is empty
+        if [ -z "$(ls -A $dir_path 2>/dev/null)" ]; then
+            echo -e "${YELLOW}Skipping ${config_type} - ${dir_path} is empty${NC}"
+            return 0
+        fi
+        
+        # For secrets, only apply YAML/JSON files
+        if [ "$config_type" = "Secrets" ]; then
+            echo -e "${GREEN}Applying ${config_type}...${NC}"
+            for file in "$dir_path"/*.{yaml,yml,json}; do
+                if [ -f "$file" ]; then
+                    echo "Applying $(basename $file)"
+                    kubectl apply -f "$file"
+                fi
+            done
+        else
+            echo -e "${GREEN}Applying ${config_type}...${NC}"
+            kubectl apply -f "$dir_path"
+        fi
     else
-        echo -e "${YELLOW}Skipping ${config_type} - ${dir_path} not found or empty${NC}"
+        echo -e "${YELLOW}Skipping ${config_type} - ${dir_path} not found${NC}"
         return 0
     fi
 }
@@ -28,8 +45,7 @@ apply_if_exists "namespace" "k3s/namespaces/"
 # 2. Apply ConfigMaps
 apply_if_exists "ConfigMaps" "k3s/configs/"
 
-# 3. Apply Secrets (will be skipped if directory doesn't exist)
-# Note: Secrets are now created directly in the GitHub Actions workflow
+# 3. Apply Secrets (will be skipped if directory doesn't exist or is empty)
 apply_if_exists "Secrets" "k3s/secrets/"
 
 # 4. Deploy applications
