@@ -5,7 +5,7 @@ REACT_APP_ENV=development
 EOL
 
 cat > nodejs/loginscreen/.env.production << 'EOL'
-REACT_APP_API_URL=http://152.67.6.40:8080/api
+REACT_APP_API_URL=http://shivajshankar1.duckdns.org:8080/api
 REACT_APP_ENV=production
 EOL
 
