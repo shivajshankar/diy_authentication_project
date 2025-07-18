@@ -1,0 +1,128 @@
+name: Deploy to k3s
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Set environment variables
+env:
+  KUBECONFIG: ${{ github.workspace }}/.kube/config
+  NAMESPACE: auth-app
+  FRONTEND_URL: http://shivajshankar1.duckdns.org:3000
+  BACKEND_URL: http://shivajshankar1.duckdns.org:8080
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.24.0'  # Match your k3s version
+
+    - name: Configure kubeconfig
+      id: kubeconfig
+      run: |
+        # Create .kube directory
+        mkdir -p $(dirname $KUBECONFIG)
+        
+        # Decode and save kubeconfig
+        if [ -z "${{ secrets.KUBE_CONFIG }}" ]; then
+          echo "::error::KUBE_CONFIG secret is not set"
+          exit 1
+        fi
+        
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$KUBECONFIG"
+        chmod 600 "$KUBECONFIG"
+        
+        # Verify cluster access
+        echo " Verifying cluster access..."
+        kubectl config view --minify
+        kubectl cluster-info
+        kubectl get nodes --no-headers
+        
+        # Set outputs for other steps
+        echo "kubeconfig-path=$KUBECONFIG" >> $GITHUB_OUTPUT
+
+    - name: Deploy to k3s cluster
+      run: |
+        echo " Starting deployment to k3s cluster..."
+        cd deploy
+        
+        # Make scripts executable
+        chmod +x ./scripts/deploy.sh
+        
+        # Run deployment script
+        if ! ./scripts/deploy.sh; then
+          echo "::error::Deployment script failed"
+          exit 1
+        fi
+        
+        echo " Deployment completed successfully"
+
+    - name: Verify deployments
+      run: |
+        echo " Verifying deployments in namespace: $NAMESPACE"
+        echo "========================================"
+        
+        # Check resources
+        echo " Kubernetes resources:"
+        kubectl get all,ingress -n $NAMESPACE
+        
+        # Check pod status
+        echo -e "\n Pod status:"
+        kubectl get pods -n $NAMESPACE -o wide
+        
+        # Check pod events
+        echo -e "\n Pod events:"
+        kubectl get events -n $NAMESPACE --sort-by='.metadata.creationTimestamp'
+        
+        # Check pod logs if available
+        echo -e "\n Pod logs:"
+        for pod in $(kubectl get pods -n $NAMESPACE -o name); do
+          echo -e "\n Logs for $pod:"
+          kubectl logs -n $NAMESPACE $pod --tail=50 || echo "No logs available"
+        done
+
+    - name: Check application health
+      if: always()
+      run: |
+        echo " Running health checks..."
+        echo "Frontend URL: $FRONTEND_URL"
+        echo "Backend API: $BACKEND_URL"
+        
+        # Check backend health
+        echo -e "\n Backend health check:"
+        if ! curl -s -I "$BACKEND_URL/actuator/health" 2>/dev/null; then
+          echo " Backend health check failed"
+          exit 1
+        fi
+        
+        # Check frontend availability
+        echo -e "\n Frontend availability:"
+        if ! curl -s -I "$FRONTEND_URL" 2>/dev/null; then
+          echo " Frontend is not reachable"
+          exit 1
+        fi
+        
+        echo -e "\n All health checks passed!"
+
+    - name: Notify on failure
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const { data: issue } = await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body: ' Deployment failed! Check the workflow run for details.'
+          })
+          return issue.html_url

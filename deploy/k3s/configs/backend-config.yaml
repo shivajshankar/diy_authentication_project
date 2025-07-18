@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: auth-app
+data:
+  # Server Configuration
+  SERVER_PORT: "8080"
+  
+  # Application URLs - Using standard ports for Google OAuth
+  APP_URL: "http://shivajshankar1.duckdns.org:8080"
+  FRONTEND_URL: "http://shivajshankar1.duckdns.org:3000"
+  BACKEND_URL: "http://shivajshankar1.duckdns.org:8080"
+  CORS_ALLOWED_ORIGINS: "http://shivajshankar1.duckdns.org:3000"
+  
+  # Spring Profile
+  SPRING_PROFILES_ACTIVE: "prod"
+  
+  # Logging Configuration
+  LOGGING_LEVEL_ROOT: "INFO"
+  LOGGING_LEVEL_COM_DIYAUTH: "DEBUG"
+  LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB: "DEBUG"
+  LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: "DEBUG"
+  LOGGING_LEVEL_ORG_MONGODB_DRIVER: "WARN"

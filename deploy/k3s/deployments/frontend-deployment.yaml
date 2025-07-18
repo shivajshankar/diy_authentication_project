@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-frontend
+  namespace: auth-app
+  labels:
+    app: auth-frontend
+spec:
+  replicas: 1  # Changed from 2 to 1
+  selector:
+    matchLabels:
+      app: auth-frontend
+  template:
+    metadata:
+      labels:
+        app: auth-frontend
+    spec:
+      containers:
+      - name: auth-frontend
+        image: your-dockerhub-username/auth-frontend:latest
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: frontend-config
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        imagePullPolicy: Always

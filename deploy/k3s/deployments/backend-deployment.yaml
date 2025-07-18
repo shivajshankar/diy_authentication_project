@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-backend
+  namespace: auth-app
+  labels:
+    app: auth-backend
+spec:
+  replicas: 1  # Changed from 2 to 1
+  selector:
+    matchLabels:
+      app: auth-backend
+  template:
+    metadata:
+      labels:
+        app: auth-backend
+    spec:
+      containers:
+      - name: auth-backend
+        image: your-dockerhub-username/auth-backend:latest
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: backend-config
+        - secretRef:
+            name: backend-secrets
+        resources:
+          limits:
+            memory: "1024Mi"
+            cpu: "1000m"
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        imagePullPolicy: Always
