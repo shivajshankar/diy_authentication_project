@@ -161,6 +161,9 @@ Thumbs.db
 # Custom application specific
 HELP.md
 
+# Kubernetes Secrets
+deploy/k3s/secrets/
+
 # Git
 .gitattributes
 .gitkeep
