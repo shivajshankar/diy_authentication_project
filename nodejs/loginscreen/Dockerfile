@@ -13,7 +13,15 @@ RUN npm install
 # Copy the rest of the application
 COPY . .
 
-# Build the application for production
+# Build the application for production with environment variables
+ARG REACT_APP_API_URL
+ARG REACT_APP_ENV=production
+ARG REACT_APP_GOOGLE_AUTH_URL
+
+ENV REACT_APP_API_URL=${REACT_APP_API_URL}
+ENV REACT_APP_ENV=${REACT_APP_ENV}
+ENV REACT_APP_GOOGLE_AUTH_URL=${REACT_APP_GOOGLE_AUTH_URL}
+
 RUN npm run build:prod
 
 # Stage 2: Serve the built application using Nginx
