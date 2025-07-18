@@ -137,8 +137,12 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
         config.addAllowedOrigin("http://shivajshankar1.duckdns.org:3000");
+        config.addAllowedOrigin("http://shivajshankar1.duckdns.org:81");
+        config.addAllowedOrigin("http://shivajshankar1.duckdns.org");
         config.addAllowedOrigin("http://shivajshankar2.duckdns.org:3000");
         config.addAllowedOrigin("http://localhost:3000");
+        config.addAllowedOrigin("http://localhost:81");
+        config.addAllowedOrigin("http://localhost");
         config.addAllowedHeader("*");
         config.addExposedHeader("Authorization");
         config.addAllowedMethod("*");
