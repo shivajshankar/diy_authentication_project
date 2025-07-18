@@ -51,6 +51,31 @@ jobs:
         # Set outputs for other steps
         echo "kubeconfig-path=$KUBECONFIG" >> $GITHUB_OUTPUT
 
+    - name: Create Kubernetes Secrets
+      run: |
+        cat > backend-secrets.yaml << 'EOF'
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: backend-secrets
+          namespace: auth-app
+        type: Opaque
+        data:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_EXPIRATION_MS: ${{ secrets.JWT_EXPIRATION_MS }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        EOF
+        
+        # Apply the secret
+        kubectl apply -f backend-secrets.yaml
+        
+        # Clean up
+        rm -f backend-secrets.yaml
+      env:
+        KUBECONFIG: ${{ github.workspace }}/.kube/config
+
     - name: Deploy to k3s cluster
       run: |
         echo " Starting deployment to k3s cluster..."
