@@ -6,7 +6,7 @@ metadata:
   labels:
     app: auth-backend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: auth-backend
@@ -28,11 +28,11 @@ spec:
             name: backend-secrets
         resources:
           limits:
-            memory: "1024Mi"
-            cpu: "1000m"
-          requests:
             memory: "512Mi"
             cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
         livenessProbe:
           httpGet:
             path: /actuator/health
