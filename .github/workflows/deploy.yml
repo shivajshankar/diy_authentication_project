@@ -14,6 +14,7 @@ env:
   NAMESPACE: auth-app
   FRONTEND_URL: http://shivajshankar1.duckdns.org:3000
   BACKEND_URL: http://shivajshankar1.duckdns.org:8080
+  K3S_DIR: ${{ env.WORKING_DIR }}/deploy/k3s
 
 jobs:
   deploy:
@@ -37,6 +38,9 @@ jobs:
           mkdir -p ${{ env.WORKING_DIR }}
         "
         
+        # Make deploy script executable
+        chmod +x ./deploy/scripts/deploy.sh
+        
         # Copy source code (excluding node_modules and other unnecessary files)
         rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
           --exclude='.git' \
@@ -47,90 +51,25 @@ jobs:
           . \
           ${{ env.SSH_USER }}@${{ env.SERVER_IP }}:${{ env.WORKING_DIR}}/
 
-    - name: Build and Deploy on Server
+    - name: Run deployment script
       run: |
         ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} << 'ENDSSH'
-          cd $WORKING_DIR
+          cd ${{ env.WORKING_DIR }}
           
-          echo "=== Building Docker Images ==="
+          # Set environment variables
+          export MONGODB_URI='${{ secrets.MONGODB_URI }}'
+          export JWT_SECRET='${{ secrets.JWT_SECRET }}'
+          export GOOGLE_CLIENT_ID='${{ secrets.GOOGLE_CLIENT_ID }}'
+          export GOOGLE_CLIENT_SECRET='${{ secrets.GOOGLE_CLIENT_SECRET }}'
+          export FRONTEND_URL='${{ env.FRONTEND_URL }}'
+          export BACKEND_URL='${{ env.BACKEND_URL }}'
           
-          # Build backend image
-          docker build \
-            -t $BACKEND_IMAGE:latest \
-            -f Dockerfile.backend \
-            --build-arg SPRING_PROFILES_ACTIVE=prod \
-            --build-arg MONGODB_URI=${{ secrets.MONGODB_URI }} \
-            --build-arg JWT_SECRET=${{ secrets.JWT_SECRET }} \
-            --build-arg JWT_EXPIRATION_MS=86400000 \
-            --build-arg GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
-            --build-arg GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
-            --build-arg APP_URL=$BACKEND_URL \
-            --build-arg CORS_ALLOWED_ORIGINS="$FRONTEND_URL,http://localhost:3000,http://localhost" \
-            .
-          
-          # Build frontend image
-          cd nodejs/loginscreen
-          docker build \
-            -t $FRONTEND_IMAGE:latest \
-            --build-arg REACT_APP_API_URL="$BACKEND_URL/api" \
-            --build-arg REACT_APP_ENV="production" \
-            --build-arg REACT_APP_GOOGLE_AUTH_URL="$BACKEND_URL/oauth2/authorization/google" \
-            .
-          
-          cd $WORKING_DIR
-          
-          echo "=== Deploying with k3s ==="
-          
-          # Make images available to k3s
-          sudo k3s ctr images import <(docker save $BACKEND_IMAGE:latest)
-          sudo k3s ctr images import <(docker save $FRONTEND_IMAGE:latest)
-          
-          # Update k3s deployment files with the correct image names
-          cd deploy/k3s
-          
-          # Update image references in deployment files
-          sed -i "s|image: .*|image: $BACKEND_IMAGE:latest|" deployments/backend-deployment.yaml
-          sed -i "s|image: .*|image: $FRONTEND_IMAGE:latest|" deployments/frontend-deployment.yaml
-          
-          # Apply all Kubernetes configurations
-          echo "Applying Kubernetes configurations..."
-          kubectl apply -f namespaces/
-          kubectl apply -f configs/
-          
-          # Create or update secrets
-          cat > /tmp/backend-secrets.yaml << 'EOF'
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: backend-secrets
-            namespace: auth-app
-          type: Opaque
-          stringData:
-            MONGODB_URI: ${{ secrets.MONGODB_URI }}
-            JWT_SECRET: ${{ secrets.JWT_SECRET }}
-            JWT_EXPIRATION_MS: "86400000"
-            GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-            GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          EOF
-          
-          kubectl apply -f /tmp/backend-secrets.yaml
-          
-          # Apply remaining configurations
-          kubectl apply -f services/
-          kubectl apply -f deployments/
-          kubectl apply -f ingresses/
-          
-          # Wait for deployments to complete
-          echo "Waiting for deployments to be ready..."
-          kubectl wait --for=condition=available --timeout=300s deployment/auth-backend -n $NAMESPACE
-          kubectl wait --for=condition=available --timeout=300s deployment/auth-frontend -n $NAMESPACE
-          
-          echo "=== Deployment Complete ==="
-          echo "Backend URL: $BACKEND_URL"
-          echo "Frontend URL: $FRONTEND_URL"
+          # Make script executable and run it
+          chmod +x ./deploy/scripts/deploy.sh
+          ./deploy/scripts/deploy.sh
         ENDSSH
 
-    - name: Verify Deployment
+    - name: Verify deployment
       run: |
         echo "=== Verifying Deployment ==="
         echo "Backend Health: ${{ env.BACKEND_URL }}/actuator/health"
