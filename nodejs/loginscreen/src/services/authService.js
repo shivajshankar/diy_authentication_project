@@ -2,6 +2,12 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
 
+// Debug log to show what URL is being used
+console.log('=== AUTH SERVICE DEBUG ===');
+console.log('Using API_URL:', API_URL);
+console.log('process.env.REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+console.log('=========================');
+
 // Create a single axios instance
 const api = axios.create({
   baseURL: API_URL,
@@ -10,6 +16,37 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
+});
+
+// Add a request interceptor to log all requests
+api.interceptors.request.use(request => {
+  console.log('Starting Request', JSON.stringify(request, null, 2));
+  return request;
+});
+
+// Add a response interceptor to log all responses
+api.interceptors.response.use(response => {
+  console.log('Response:', {
+    status: response.status,
+    url: response.config.url,
+    baseURL: response.config.baseURL,
+    data: response.data
+  });
+  return response;
+}, error => {
+  console.error('Error in API call:', {
+    message: error.message,
+    config: {
+      url: error.config?.url,
+      baseURL: error.config?.baseURL,
+      method: error.config?.method,
+    },
+    response: {
+      status: error.response?.status,
+      data: error.response?.data,
+    }
+  });
+  return Promise.reject(error);
 });
 
 // Cache for the current user request

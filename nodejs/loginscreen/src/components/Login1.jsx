@@ -11,11 +11,20 @@ const Login1 = () => {
   const navigate = useNavigate();
   const { login: contextLogin, isAuthenticated } = useAuth();
 
+  // Debug log for component mount and auth state
   useEffect(() => {
-    console.log('Login1: Component mounted or auth state changed', { isAuthenticated });
+    console.log('=== LOGIN COMPONENT DEBUG ===');
+    console.log('Component mounted. isAuthenticated:', isAuthenticated);
+    console.log('Environment variables:', {
+      NODE_ENV: process.env.NODE_ENV,
+      REACT_APP_API_URL: process.env.REACT_APP_API_URL,
+      REACT_APP_GOOGLE_AUTH_URL: process.env.REACT_APP_GOOGLE_AUTH_URL,
+      REACT_APP_ENV: process.env.REACT_APP_ENV
+    });
+    console.log('============================');
     
     return () => {
-      console.log('Login1: Component unmounting');
+      console.log('Login component unmounting');
     };
   }, [isAuthenticated]);
 
@@ -34,14 +43,14 @@ const Login1 = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Login1: Form submitted with:', { username, password });
+    console.log('Login form submitted with:', { username });
     setLoading(true);
     setError('');
     
     try {
-      console.log('Login1: Calling authService.login...');
+      console.log('Calling authService.login...');
       const response = await authServiceLogin(username, password);
-      console.log('Login1: API Response:', response);
+      console.log('Login response:', response);
       
       if (response && response.accessToken) {
         const userData = {
@@ -50,26 +59,30 @@ const Login1 = () => {
           email: response.email || username
         };
         
-        console.log('Login1: Attempting to login with user data', userData);
+        console.log('Attempting to update auth context with user data:', userData);
         const loginSuccess = await contextLogin({
           user: userData,
           authToken: response.accessToken
         });
         
-        console.log('Login1: Login success?', loginSuccess);
+        console.log('Login success?', loginSuccess);
         
         if (loginSuccess) {
           const from = window.location.state?.from?.pathname || '/dashboard';
-          console.log('Login1: Navigating to', from);
+          console.log('Login successful, navigating to:', from);
           navigate(from, { replace: true });
         } else {
-          throw new Error('Failed to complete login process');
+          const errorMsg = 'Failed to complete login process';
+          console.error(errorMsg);
+          setError(errorMsg);
         }
       } else {
-        throw new Error('Invalid response from server');
+        const errorMsg = 'Invalid response from server';
+        console.error(errorMsg, response);
+        setError(errorMsg);
       }
     } catch (error) {
-      console.error('Login1 error:', error);
+      console.error('Login error:', error);
       setError(error.message || 'Login failed. Please check your credentials and try again.');
     } finally {
       setLoading(false);
