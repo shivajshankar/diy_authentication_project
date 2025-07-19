@@ -8,8 +8,9 @@ const GoogleLoginButton = ({ buttonText = "Continue with Google", className = ""
 
   const handleGoogleLogin = async () => {
     try {
-      // This will redirect to the backend's OAuth2 login endpoint
-      window.location.href = `${process.env.REACT_APP_API_URL.replace('/api', '')}/oauth2/authorization/google`;
+      // Use the environment variable directly for the OAuth2 URL
+      window.location.href = process.env.REACT_APP_GOOGLE_AUTH_URL || 
+        'http://shivajshankar1.duckdns.org:8080/oauth2/authorization/google';
     } catch (error) {
       console.error('Google login error:', error);
     }
