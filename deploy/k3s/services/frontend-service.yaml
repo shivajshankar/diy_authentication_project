@@ -12,5 +12,6 @@ spec:
   - name: http
     port: 3000
     targetPort: 3000
+    nodePort: 30001
     protocol: TCP
-  type: ClusterIP
+  type: NodePort
