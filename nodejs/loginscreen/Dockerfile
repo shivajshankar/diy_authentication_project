@@ -13,14 +13,10 @@ RUN npm install
 # Copy the rest of the application
 COPY . .
 
-# Set environment variables for the build
-ARG REACT_APP_API_URL=http://localhost:8080/api
-ARG REACT_APP_GOOGLE_AUTH_URL=http://localhost:8080/oauth2/authorization/google
-ARG REACT_APP_ENV=production
-
-ENV REACT_APP_API_URL=$REACT_APP_API_URL
-ENV REACT_APP_GOOGLE_AUTH_URL=$REACT_APP_GOOGLE_AUTH_URL
-ENV REACT_APP_ENV=$REACT_APP_ENV
+# Set production environment variables
+ENV REACT_APP_API_URL=http://shivajshankar.duckdns.org:8080/api
+ENV REACT_APP_GOOGLE_AUTH_URL=http://shivajshankar.duckdns.org:8080/oauth2/authorization/google
+ENV REACT_APP_ENV=production
 
 # Print the environment variables being used
 RUN echo "Building with the following environment variables:" && \
