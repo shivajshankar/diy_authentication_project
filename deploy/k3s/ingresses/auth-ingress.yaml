@@ -4,15 +4,9 @@ metadata:
   name: auth-ingress
   namespace: auth-app
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.tls: "true"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    traefik.ingress.kubernetes.io/service.serversscheme: "http"
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
-  tls:
-  - hosts:
-    - shivajshankar1.duckdns.org
-    secretName: auth-tls-secret
   rules:
   - host: shivajshankar1.duckdns.org
     http:
