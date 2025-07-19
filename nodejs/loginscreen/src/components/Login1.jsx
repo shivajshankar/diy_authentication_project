@@ -3,6 +3,14 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { login as authServiceLogin } from '../services/authService';
 
+// Debug log for environment variables
+console.log('Login1 - Environment Variables:', {
+  NODE_ENV: process.env.NODE_ENV,
+  REACT_APP_API_URL: process.env.REACT_APP_API_URL,
+  REACT_APP_GOOGLE_AUTH_URL: process.env.REACT_APP_GOOGLE_AUTH_URL,
+  REACT_APP_ENV: process.env.REACT_APP_ENV
+});
+
 const Login1 = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
