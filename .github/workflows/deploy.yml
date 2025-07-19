@@ -1,13 +1,16 @@
-name: Deploy to k3s
+name: Deploy to k3s with Local Build
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
-# Set environment variables
 env:
-  KUBECONFIG: ${{ github.workspace }}/.kube/config
+  SERVER_IP: shivajshankar1.duckdns.org
+  SSH_USER: ubuntu
+  WORKING_DIR: /home/ubuntu/githubautomation/diy_authentication_project
+  BACKEND_IMAGE: diy-auth-backend
+  FRONTEND_IMAGE: diy-auth-frontend
   NAMESPACE: auth-app
   FRONTEND_URL: http://shivajshankar1.duckdns.org:3000
   BACKEND_URL: http://shivajshankar1.duckdns.org:8080
@@ -22,132 +25,119 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
+    - name: Set up SSH
+      uses: webfactory/ssh-agent@v0.7.0
       with:
-        version: 'v1.24.0'  # Match your k3s version
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-    - name: Configure kubeconfig
-      id: kubeconfig
+    - name: Copy source code to server
       run: |
-        # Create .kube directory
-        mkdir -p $(dirname $KUBECONFIG)
+        # Create working directory
+        ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} "
+          mkdir -p ${{ env.WORKING_DIR }}
+        "
         
-        # Decode and save kubeconfig
-        if [ -z "${{ secrets.KUBE_CONFIG }}" ]; then
-          echo "::error::KUBE_CONFIG secret is not set"
-          exit 1
-        fi
-        
-        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$KUBECONFIG"
-        chmod 600 "$KUBECONFIG"
-        
-        # Verify cluster access
-        echo " Verifying cluster access..."
-        kubectl config view --minify
-        kubectl cluster-info
-        kubectl get nodes --no-headers
-        
-        # Set outputs for other steps
-        echo "kubeconfig-path=$KUBECONFIG" >> $GITHUB_OUTPUT
+        # Copy source code (excluding node_modules and other unnecessary files)
+        rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+          --exclude='.git' \
+          --exclude='node_modules' \
+          --exclude='.github' \
+          --exclude='.idea' \
+          --exclude='*.iml' \
+          . \
+          ${{ env.SSH_USER }}@${{ env.SERVER_IP }}:${{ env.WORKING_DIR}}/
 
-    - name: Create Kubernetes Secrets
+    - name: Build and Deploy on Server
       run: |
-        cat > backend-secrets.yaml << 'EOF'
-        apiVersion: v1
-        kind: Secret
-        metadata:
-          name: backend-secrets
-          namespace: auth-app
-        type: Opaque
-        data:
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          JWT_EXPIRATION_MS: ${{ secrets.JWT_EXPIRATION_MS }}
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-        EOF
-        
-        # Apply the secret
-        kubectl apply -f backend-secrets.yaml
-        
-        # Clean up
-        rm -f backend-secrets.yaml
-      env:
-        KUBECONFIG: ${{ github.workspace }}/.kube/config
+        ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} << 'ENDSSH'
+          cd $WORKING_DIR
+          
+          echo "=== Building Docker Images ==="
+          
+          # Build backend image
+          docker build \
+            -t $BACKEND_IMAGE:latest \
+            -f Dockerfile.backend \
+            --build-arg SPRING_PROFILES_ACTIVE=prod \
+            --build-arg MONGODB_URI=${{ secrets.MONGODB_URI }} \
+            --build-arg JWT_SECRET=${{ secrets.JWT_SECRET }} \
+            --build-arg JWT_EXPIRATION_MS=86400000 \
+            --build-arg GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+            --build-arg GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
+            --build-arg APP_URL=$BACKEND_URL \
+            --build-arg CORS_ALLOWED_ORIGINS="$FRONTEND_URL,http://localhost:3000,http://localhost" \
+            .
+          
+          # Build frontend image
+          cd nodejs/loginscreen
+          docker build \
+            -t $FRONTEND_IMAGE:latest \
+            --build-arg REACT_APP_API_URL="$BACKEND_URL/api" \
+            --build-arg REACT_APP_ENV="production" \
+            --build-arg REACT_APP_GOOGLE_AUTH_URL="$BACKEND_URL/oauth2/authorization/google" \
+            .
+          
+          cd $WORKING_DIR
+          
+          echo "=== Deploying with k3s ==="
+          
+          # Make images available to k3s
+          sudo k3s ctr images import <(docker save $BACKEND_IMAGE:latest)
+          sudo k3s ctr images import <(docker save $FRONTEND_IMAGE:latest)
+          
+          # Update k3s deployment files with the correct image names
+          cd deploy/k3s
+          
+          # Update image references in deployment files
+          sed -i "s|image: .*|image: $BACKEND_IMAGE:latest|" deployments/backend-deployment.yaml
+          sed -i "s|image: .*|image: $FRONTEND_IMAGE:latest|" deployments/frontend-deployment.yaml
+          
+          # Apply all Kubernetes configurations
+          echo "Applying Kubernetes configurations..."
+          kubectl apply -f namespaces/
+          kubectl apply -f configs/
+          
+          # Create or update secrets
+          cat > /tmp/backend-secrets.yaml << 'EOF'
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: backend-secrets
+            namespace: auth-app
+          type: Opaque
+          stringData:
+            MONGODB_URI: ${{ secrets.MONGODB_URI }}
+            JWT_SECRET: ${{ secrets.JWT_SECRET }}
+            JWT_EXPIRATION_MS: "86400000"
+            GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          EOF
+          
+          kubectl apply -f /tmp/backend-secrets.yaml
+          
+          # Apply remaining configurations
+          kubectl apply -f services/
+          kubectl apply -f deployments/
+          kubectl apply -f ingresses/
+          
+          # Wait for deployments to complete
+          echo "Waiting for deployments to be ready..."
+          kubectl wait --for=condition=available --timeout=300s deployment/auth-backend -n $NAMESPACE
+          kubectl wait --for=condition=available --timeout=300s deployment/auth-frontend -n $NAMESPACE
+          
+          echo "=== Deployment Complete ==="
+          echo "Backend URL: $BACKEND_URL"
+          echo "Frontend URL: $FRONTEND_URL"
+        ENDSSH
 
-    - name: Deploy to k3s cluster
+    - name: Verify Deployment
       run: |
-        echo " Starting deployment to k3s cluster..."
-        cd deploy
+        echo "=== Verifying Deployment ==="
+        echo "Backend Health: ${{ env.BACKEND_URL }}/actuator/health"
+        echo "Frontend: ${{ env.FRONTEND_URL }}"
         
-        # Make scripts executable
-        chmod +x ./scripts/deploy.sh
-        
-        # Run deployment script
-        if ! ./scripts/deploy.sh; then
-          echo "::error::Deployment script failed"
-          exit 1
-        fi
-        
-        echo " Deployment completed successfully"
-
-    - name: Verify deployments
-      run: |
-        echo " Verifying deployments in namespace: $NAMESPACE"
-        echo "========================================"
-        
-        # Check resources
-        echo " Kubernetes resources:"
-        kubectl get all,ingress -n $NAMESPACE
-        
-        # Check pod status
-        echo -e "\n Pod status:"
-        kubectl get pods -n $NAMESPACE -o wide
-        
-        # Check pod events
-        echo -e "\n Pod events:"
-        kubectl get events -n $NAMESPACE --sort-by='.metadata.creationTimestamp'
-        
-        # Check pod logs if available
-        echo -e "\n Pod logs:"
-        for pod in $(kubectl get pods -n $NAMESPACE -o name); do
-          echo -e "\n Logs for $pod:"
-          kubectl logs -n $NAMESPACE $pod --tail=50 || echo "No logs available"
-        done
-
-    - name: Check application health
-      if: always()
-      run: |
-        echo " Running health checks..."
-        echo "Frontend URL: $FRONTEND_URL"
-        echo "Backend API: $BACKEND_URL"
-        
-        # Check backend health
-        echo -e "\n Backend health check:"
-        if ! curl -s -I "$BACKEND_URL/actuator/health" 2>/dev/null; then
-          echo " Backend health check failed"
-          exit 1
-        fi
-        
-        # Check frontend availability
-        echo -e "\n Frontend availability:"
-        if ! curl -s -I "$FRONTEND_URL" 2>/dev/null; then
-          echo " Frontend is not reachable"
-          exit 1
-        fi
-        
-        echo -e "\n All health checks passed!"
-
-    - name: Notify on failure
-      if: failure()
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const { data: issue } = await github.rest.issues.createComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-            body: ' Deployment failed! Check the workflow run for details.'
-          })
-          return issue.html_url
+        # Simple health check
+        echo -n "Backend status: "
+        curl -s -o /dev/null -w "%{http_code}" ${{ env.BACKEND_URL }}/actuator/health || echo "unreachable"
+        echo -n "\nFrontend status: "
+        curl -s -o /dev/null -w "%{http_code}" ${{ env.FRONTEND_URL }} || echo "unreachable"
