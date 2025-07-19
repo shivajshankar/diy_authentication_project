@@ -16,10 +16,16 @@ COPY . .
 # Set environment variables with defaults
 ENV REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8080/api}
 ENV REACT_APP_GOOGLE_AUTH_URL=${REACT_APP_GOOGLE_AUTH_URL:-http://localhost:8080/oauth2/authorization/google}
-ENV REACT_APP_ENV=${REACT_APP_ENV:-development}
+ENV REACT_APP_ENV=${REACT_APP_ENV:-production}
 
-# Expose port 3000 for the development server
+# Build the production build
+RUN npm run build
+
+# Install serve to serve the build folder
+RUN npm install -g serve
+
+# Expose port 3000 for the production server
 EXPOSE 3000
 
-# Start the React development server
-CMD ["npm", "start"]
+# Start the production server
+CMD ["serve", "-s", "build", "-l", "3000"]

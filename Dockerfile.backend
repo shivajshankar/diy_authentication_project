@@ -28,5 +28,18 @@ COPY --from=builder /app/target/*.jar app.jar
 # Expose the port the app runs on
 EXPOSE 8080
 
-# Set the entry point
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Set environment variables with defaults (for documentation, not required for Java)
+ENV SPRING_PROFILES_ACTIVE=prod
+ENV MONGODB_URI=
+ENV JWT_SECRET=
+ENV JWT_EXPIRATION_MS=86400000
+ENV GOOGLE_CLIENT_ID=
+ENV GOOGLE_CLIENT_SECRET=
+ENV APP_URL=
+ENV FRONTEND_URL=
+ENV BACKEND_URL=
+ENV DOMAIN=
+ENV CORS_ALLOWED_ORIGINS=
+
+# Set the entry point (pass all env vars to Java)
+ENTRYPOINT ["sh", "-c", "java -jar app.jar"]
