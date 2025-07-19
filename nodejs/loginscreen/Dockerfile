@@ -1,4 +1,4 @@
-# Stage 1: Build and serve the React application
+# Use Node.js 18 Alpine as the base image
 FROM node:18-alpine
 
 # Set working directory
@@ -13,16 +13,12 @@ RUN npm install
 # Copy the rest of the application
 COPY . .
 
-# Set environment variables
-ARG REACT_APP_API_URL
-ARG REACT_APP_ENV=production
-ARG REACT_APP_GOOGLE_AUTH_URL
+# Set environment variables with defaults
+ENV REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8080/api}
+ENV REACT_APP_GOOGLE_AUTH_URL=${REACT_APP_GOOGLE_AUTH_URL:-http://localhost:8080/oauth2/authorization/google}
+ENV REACT_APP_ENV=${REACT_APP_ENV:-development}
 
-ENV REACT_APP_API_URL=${REACT_APP_API_URL}
-ENV REACT_APP_ENV=${REACT_APP_ENV}
-ENV REACT_APP_GOOGLE_AUTH_URL=${REACT_APP_GOOGLE_AUTH_URL}
-
-# Expose port 3000
+# Expose port 3000 for the development server
 EXPOSE 3000
 
 # Start the React development server
