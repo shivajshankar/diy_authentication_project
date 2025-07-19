@@ -6,7 +6,7 @@ metadata:
   labels:
     app: auth-frontend
 spec:
-  replicas: 1  # Changed from 2 to 1
+  replicas: 2
   selector:
     matchLabels:
       app: auth-frontend
@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
       - name: auth-frontend
-        image: your-dockerhub-username/auth-frontend:latest
+        image: diy-auth-frontend:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000
         envFrom:
@@ -42,4 +43,3 @@ spec:
             port: 3000
           initialDelaySeconds: 15
           periodSeconds: 10
-        imagePullPolicy: Always

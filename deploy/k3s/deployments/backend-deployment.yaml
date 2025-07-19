@@ -6,7 +6,7 @@ metadata:
   labels:
     app: auth-backend
 spec:
-  replicas: 1  # Changed from 2 to 1
+  replicas: 2
   selector:
     matchLabels:
       app: auth-backend
@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
       - name: auth-backend
-        image: your-dockerhub-username/auth-backend:latest
+        image: diy-auth-backend:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
         envFrom:
@@ -44,4 +45,3 @@ spec:
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 10
-        imagePullPolicy: Always
