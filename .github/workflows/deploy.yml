@@ -14,7 +14,7 @@ env:
   NAMESPACE: auth-app
   FRONTEND_URL: http://shivajshankar1.duckdns.org:3000
   BACKEND_URL: http://shivajshankar1.duckdns.org:8080
-  K3S_DIR: ${{ env.WORKING_DIR }}/deploy/k3s
+  K3S_DIR: /home/ubuntu/githubautomation/diy_authentication_project/deploy/k3s
 
 jobs:
   deploy:
