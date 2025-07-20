@@ -102,7 +102,7 @@ apply_if_exists() {
     
     if [ -d "$dir_path" ]; then
         # Skip if directory is empty
-        if [ -z "$(ls -A $dir_path 2>/dev/null)" ]; then
+        if [ -z "$(ls -A "$dir_path" 2>/dev/null)" ]; then
             echo -e "${YELLOW}Skipping ${config_type} - ${dir_path} is empty${NC}"
             return 0
         fi
@@ -113,7 +113,7 @@ apply_if_exists() {
         if [ "$config_type" = "Secrets" ]; then
             for file in "$dir_path"/*.{yaml,yml,json}; do
                 if [ -f "$file" ]; then
-                    echo "Applying $(basename $file)"
+                    echo "Applying $(basename "$file")"
                     kubectl apply -f "$file"
                 fi
             done
@@ -140,7 +140,7 @@ main() {
     if [ ! -d "${K3S_DIR}" ]; then
         echo -e "${RED}K3S directory not found at ${K3S_DIR}${NC}"
         exit 1
-    }
+    fi
     
     # Clean up old images before starting new build
     cleanup_old_images
@@ -156,7 +156,7 @@ main() {
         echo -e "Current directory: $(pwd)"
         ls -la
         exit 1
-    }
+    fi
     
     build_and_import_image "nodejs/loginscreen" "Dockerfile" "${FRONTEND_IMAGE}" "latest"
     
@@ -164,7 +164,7 @@ main() {
     if [ ! -f "${K3S_DIR}/deployments/backend-deployment.yaml" ] || [ ! -f "${K3S_DIR}/deployments/frontend-deployment.yaml" ]; then
         echo -e "${RED}Deployment files not found in ${K3S_DIR}/deployments/${NC}"
         exit 1
-    }
+    fi
     
     # Update image references in deployment files
     echo -e "\n${GREEN}Updating image references...${NC}"
