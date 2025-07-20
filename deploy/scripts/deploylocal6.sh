@@ -31,6 +31,14 @@ if [ ! -f "$CLEANUP_SCRIPT" ]; then
     exit 1
 fi
 
+# Check apply_sensitive_info_prod.sh exists
+if [ ! -f "./apply_sensitive_info_prod.sh" ]; then
+    echo -e "${RED}Error: apply_sensitive_info_prod.sh not found${NC}"
+    exit 1
+fi
+. ./apply_sensitive_info_prod.sh #Makes sure all the variables are rightly set
+echo -e " ===applied all the env variables and secrets to the bash shell ==="
+
 # Check if required environment variables are set
 required_vars=(
   "MONGODB_URI" "JWT_SECRET" "JWT_EXPIRATION_MS"
