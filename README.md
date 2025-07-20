@@ -14,6 +14,7 @@ https://docs.google.com/presentation/d/1sBi5AGHguswuyPuFN94yphvb2Nhwv2qWZI81wZ1d
 - Password hashing and security best practices
 - Session management
 - API authentication endpoints
+- Currently uses http for demo purpose, but it has to use https //@Todo
 
 ## Tech Stack
 
