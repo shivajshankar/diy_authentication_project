@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Debug log to show API URL
-console.log('DEBUG shiva2 - API Base URL:', process.env.REACT_APP_API_URL || 'Using default URL');
+console.log('DEBUG shiva3 - API Base URL:', process.env.REACT_APP_API_URL || 'Using default URL');
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
 
