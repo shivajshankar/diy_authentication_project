@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eo pipefail
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -13,6 +13,7 @@ WORKING_DIR=${WORKING_DIR:-/home/ubuntu/githubautomation/diy_authentication_proj
 BACKEND_IMAGE=${BACKEND_IMAGE:-diy-auth-backend}
 FRONTEND_IMAGE=${FRONTEND_IMAGE:-diy-auth-frontend}
 K3S_DIR=${K3S_DIR:-$WORKING_DIR/deploy/k3s}
+CLEANUP_SCRIPT="$WORKING_DIR/deploy/scripts/cleanup_k3s_images.sh"
 
 # Environment variables with defaults
 MONGODB_URI=${MONGODB_URI:-}
@@ -23,7 +24,20 @@ GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
 FRONTEND_URL=${FRONTEND_URL:-}
 BACKEND_URL=${BACKEND_URL:-}
 
-echo -e "${GREEN}Starting Kubernetes deployment...${NC}"
+# Function to clean up old k3s images
+cleanup_old_images() {
+    echo -e "\n${YELLOW}=== Cleaning up old k3s images ===${NC}"
+    
+    if [ ! -f "$CLEANUP_SCRIPT" ]; then
+        echo -e "${YELLOW}Cleanup script not found at $CLEANUP_SCRIPT, skipping cleanup${NC}"
+        return 0
+    fi
+    
+    echo "Running cleanup script: $CLEANUP_SCRIPT"
+    if ! bash "$CLEANUP_SCRIPT" "latest"; then
+        echo -e "${YELLOW}Warning: Image cleanup failed, but continuing with deployment${NC}"
+    fi
+}
 
 # Function to build and import Docker image
 build_and_import_image() {
@@ -66,6 +80,9 @@ build_and_import_image() {
         return 1
     fi
     
+    # Clean up old images before importing new ones
+    cleanup_old_images
+    
     # Import into k3s
     echo -e "${GREEN}Importing ${full_image_name} into k3s...${NC}"
     if ! docker save "${full_image_name}" | sudo k3s ctr images import -; then
@@ -88,7 +105,7 @@ apply_if_exists() {
         if [ -z "$(ls -A $dir_path 2>/dev/null)" ]; then
             echo -e "${YELLOW}Skipping ${config_type} - ${dir_path} is empty${NC}"
             return 0
-        fi
+        }
         
         echo -e "${GREEN}Applying ${config_type} from ${dir_path}...${NC}"
         
@@ -123,7 +140,10 @@ main() {
     if [ ! -d "${K3S_DIR}" ]; then
         echo -e "${RED}K3S directory not found at ${K3S_DIR}${NC}"
         exit 1
-    fi
+    }
+    
+    # Clean up old images before starting new build
+    cleanup_old_images
     
     # Build and import backend image
     echo -e "\n${GREEN}=== Building Backend ===${NC}"
@@ -136,7 +156,7 @@ main() {
         echo -e "Current directory: $(pwd)"
         ls -la
         exit 1
-    fi
+    }
     
     build_and_import_image "nodejs/loginscreen" "Dockerfile" "${FRONTEND_IMAGE}" "latest"
     
@@ -144,7 +164,7 @@ main() {
     if [ ! -f "${K3S_DIR}/deployments/backend-deployment.yaml" ] || [ ! -f "${K3S_DIR}/deployments/frontend-deployment.yaml" ]; then
         echo -e "${RED}Deployment files not found in ${K3S_DIR}/deployments/${NC}"
         exit 1
-    fi
+    }
     
     # Update image references in deployment files
     echo -e "\n${GREEN}Updating image references...${NC}"
@@ -172,9 +192,16 @@ main() {
     # 6. Set up ingress
     apply_if_exists "ingress" "${K3S_DIR}/ingresses/"
     
-    # 7. Verify deployment
+    # 7. Restart deployments to ensure new images are used
+    echo -e "\n${GREEN}=== Restarting Deployments ===${NC}"
+    kubectl rollout restart deployment -n "${NAMESPACE}"
+    
+    # 8. Verify deployment
     echo -e "\n${GREEN}=== Deployment Status ===${NC}"
     kubectl get pods,svc,ingress -n "${NAMESPACE}"
+    
+    # 9. Clean up old images one final time
+    cleanup_old_images
     
     echo -e "\n${GREEN}=== Deployment completed! ===${NC}"
     echo -e "Frontend URL: ${FRONTEND_URL:-Not set}"
