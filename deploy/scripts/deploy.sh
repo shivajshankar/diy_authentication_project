@@ -105,7 +105,7 @@ apply_if_exists() {
         if [ -z "$(ls -A $dir_path 2>/dev/null)" ]; then
             echo -e "${YELLOW}Skipping ${config_type} - ${dir_path} is empty${NC}"
             return 0
-        }
+        fi
         
         echo -e "${GREEN}Applying ${config_type} from ${dir_path}...${NC}"
         
