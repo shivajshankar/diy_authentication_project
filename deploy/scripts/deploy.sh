@@ -55,6 +55,11 @@ build_and_import_image() {
     # Build the Docker image with appropriate build args
     local build_cmd="docker build -t ${full_image_name} -f ${dockerfile}"
     
+    # Add --no-cache flag for frontend builds
+    if [ "${dockerfile}" = "Dockerfile" ]; then
+        build_cmd="docker build --no-cache -t ${full_image_name} -f ${dockerfile}"
+    fi
+    
     # Add build args for backend
     if [ "${dockerfile}" = "Dockerfile.backend" ]; then
         build_cmd+=" --build-arg SPRING_PROFILES_ACTIVE=prod"

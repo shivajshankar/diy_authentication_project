@@ -49,6 +49,17 @@ jobs:
           . \
           ${{ env.SSH_USER }}@${{ env.SERVER_IP }}:${{ env.WORKING_DIR}}/
 
+    - name: Clean up Docker environment
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} "
+          # Remove any existing frontend containers and images
+          docker ps -a | grep ${{ env.FRONTEND_IMAGE }} | awk '{print \$1}' | xargs -r docker rm -f 2>/dev/null || true
+          docker images | grep ${{ env.FRONTEND_IMAGE }} | awk '{print \$3}' | xargs -r docker rmi -f 2>/dev/null || true
+          
+          # Clean up any dangling images
+          docker system prune -f
+        "
+
     - name: Run deployment script
       run: |
         ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} << 'ENDSSH'
