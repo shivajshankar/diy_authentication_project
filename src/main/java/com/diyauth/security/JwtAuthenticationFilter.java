@@ -56,7 +56,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     request.setAttribute("jwtException", ex);
                 }
             } else {
-                logger.debug("No JWT token found in request headers");
+                logger.trace("No JWT token found in request headers");
             }
         } catch (Exception ex) {
             logger.error("Failed to set user authentication in security context", ex);
