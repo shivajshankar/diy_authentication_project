@@ -1,0 +1,101 @@
+name: Deploy Frontend to k3s
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'nodejs/loginscreen/**'
+      - 'deploy/k3s/deployments/frontend-*.yaml'
+      - 'deploy/k3s/services/frontend-*.yaml'
+      - 'deploy/k3s/ingresses/frontend-*.yaml'
+      - '.github/workflows/deploy_frontend.yml'
+
+env:
+  SERVER_IP: shivajshankar1.duckdns.org
+  SSH_USER: ubuntu
+  WORKING_DIR: /home/ubuntu/githubautomation/diy_authentication_project
+  FRONTEND_IMAGE: diy-auth-frontend
+  NAMESPACE: auth-app
+  FRONTEND_URL: http://shivajshankar1.duckdns.org:3000
+  BACKEND_URL: http://shivajshankar1.duckdns.org:8080
+  K3S_DIR: /home/ubuntu/githubautomation/diy_authentication_project/deploy/k3s
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up SSH
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Copy frontend code to server
+      run: |
+        # Create working directory
+        ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} "
+          mkdir -p ${{ env.WORKING_DIR }}
+        "
+        
+        # Make deploy script executable
+        chmod +x ./deploy/scripts/deploy_frontend.sh
+        
+        # Copy only necessary files for frontend
+        rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+          --exclude='.git' \
+          --exclude='target' \
+          --exclude='.mvn' \
+          --exclude='.idea' \
+          --exclude='*.iml' \
+          --include='nodejs/loginscreen/**' \
+          --include='deploy/scripts/deploy_frontend.sh' \
+          --include='deploy/k3s/namespaces/' \
+          --include='deploy/k3s/namespaces/*' \
+          --include='deploy/k3s/configs/frontend-*' \
+          --include='deploy/k3s/deployments/frontend-*' \
+          --include='deploy/k3s/services/frontend-*' \
+          --include='deploy/k3s/ingresses/frontend-*' \
+          --include='deploy/scripts/cleanup_k3s_images.sh' \
+          --exclude='*' \
+          . \
+          ${{ env.SSH_USER }}@${{ env.SERVER_IP }}:${{ env.WORKING_DIR}}/
+
+    - name: Clean up Docker environment for frontend
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} "
+          # Remove any existing frontend containers and images
+          docker ps -a | grep ${{ env.FRONTEND_IMAGE }} | awk '{print \$1}' | xargs -r docker rm -f 2>/dev/null || true
+          docker images | grep ${{ env.FRONTEND_IMAGE }} | awk '{print \$3}' | xargs -r docker rmi -f 2>/dev/null || true
+          
+          # Clean up any dangling images
+          docker system prune -f
+        "
+
+    - name: Run frontend deployment script
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} << 'ENDSSH'
+          cd ${{ env.WORKING_DIR }}
+          
+          # Set environment variables
+          export FRONTEND_URL='${{ env.FRONTEND_URL }}'
+          export BACKEND_URL='${{ env.BACKEND_URL }}'
+          
+          # Make script executable and run it
+          chmod +x ./deploy/scripts/deploy_frontend.sh
+          ./deploy/scripts/deploy_frontend.sh
+        ENDSSH
+
+    - name: Verify frontend deployment
+      run: |
+        echo "=== Verifying Frontend Deployment ==="
+        echo "Frontend URL: ${{ env.FRONTEND_URL }}"
+        
+        # Simple health check
+        echo -n "Frontend status: "
+        curl -s -o /dev/null -w "%{http_code}" ${{ env.FRONTEND_URL }} || echo "unreachable"
+        echo -e "\nFrontend deployment completed successfully!"

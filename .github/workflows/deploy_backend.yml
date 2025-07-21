@@ -1,0 +1,113 @@
+name: Deploy Backend to k3s
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+      - 'Dockerfile.backend'
+      - 'deploy/k3s/deployments/backend-*.yaml'
+      - 'deploy/k3s/services/backend-*.yaml'
+      - 'deploy/k3s/ingresses/backend-*.yaml'
+      - 'deploy/k3s/configs/backend-*.yaml'
+      - 'deploy/k3s/secrets/**'
+      - '.github/workflows/deploy_backend.yml'
+
+env:
+  SERVER_IP: shivajshankar1.duckdns.org
+  SSH_USER: ubuntu
+  WORKING_DIR: /home/ubuntu/githubautomation/diy_authentication_project
+  BACKEND_IMAGE: diy-auth-backend
+  NAMESPACE: auth-app
+  FRONTEND_URL: http://shivajshankar1.duckdns.org:3000
+  BACKEND_URL: http://shivajshankar1.duckdns.org:8080
+  K3S_DIR: /home/ubuntu/githubautomation/diy_authentication_project/deploy/k3s
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up SSH
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Copy backend code to server
+      run: |
+        # Create working directory
+        ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} "
+          mkdir -p ${{ env.WORKING_DIR }}
+        "
+        
+        # Make deploy script executable
+        chmod +x ./deploy/scripts/deploy_backend.sh
+        
+        # Copy only necessary files for backend
+        rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+          --exclude='.git' \
+          --exclude='node_modules' \
+          --exclude='.idea' \
+          --exclude='*.iml' \
+          --include='src/**' \
+          --include='pom.xml' \
+          --include='Dockerfile.backend' \
+          --include='deploy/scripts/deploy_backend.sh' \
+          --include='deploy/k3s/namespaces/' \
+          --include='deploy/k3s/namespaces/*' \
+          --include='deploy/k3s/configs/backend-*' \
+          --include='deploy/k3s/secrets/' \
+          --include='deploy/k3s/secrets/*' \
+          --include='deploy/k3s/deployments/backend-*' \
+          --include='deploy/k3s/services/backend-*' \
+          --include='deploy/k3s/ingresses/backend-*' \
+          --include='deploy/scripts/cleanup_k3s_images.sh' \
+          --exclude='*' \
+          . \
+          ${{ env.SSH_USER }}@${{ env.SERVER_IP }}:${{ env.WORKING_DIR}}/
+
+    - name: Clean up Docker environment for backend
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} "
+          # Remove any existing backend containers and images
+          docker ps -a | grep ${{ env.BACKEND_IMAGE }} | awk '{print \$1}' | xargs -r docker rm -f 2>/dev/null || true
+          docker images | grep ${{ env.BACKEND_IMAGE }} | awk '{print \$3}' | xargs -r docker rmi -f 2>/dev/null || true
+          
+          # Clean up any dangling images
+          docker system prune -f
+        "
+
+    - name: Run backend deployment script
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} << 'ENDSSH'
+          cd ${{ env.WORKING_DIR }}
+          
+          # Set environment variables
+          export MONGODB_URI='${{ secrets.MONGODB_URI }}'
+          export JWT_SECRET='${{ secrets.JWT_SECRET }}'
+          export JWT_EXPIRATION_MS='${{ secrets.JWT_EXPIRATION_MS }}'
+          export GOOGLE_CLIENT_ID='${{ secrets.GOOGLE_CLIENT_ID }}'
+          export GOOGLE_CLIENT_SECRET='${{ secrets.GOOGLE_CLIENT_SECRET }}'
+          export FRONTEND_URL='${{ env.FRONTEND_URL }}'
+          export BACKEND_URL='${{ env.BACKEND_URL }}'
+          
+          # Make script executable and run it
+          chmod +x ./deploy/scripts/deploy_backend.sh
+          ./deploy/scripts/deploy_backend.sh
+        ENDSSH
+
+    - name: Verify backend deployment
+      run: |
+        echo "=== Verifying Backend Deployment ==="
+        echo "Backend API: ${{ env.BACKEND_URL }}/api"
+        
+        # Simple health check
+        echo -n "Backend health status: "
+        curl -s -o /dev/null -w "%{http_code}" ${{ env.BACKEND_URL }}/actuator/health || echo "unreachable"
+        echo -e "\nBackend deployment completed successfully!"
