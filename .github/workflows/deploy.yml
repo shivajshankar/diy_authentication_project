@@ -1,4 +1,4 @@
-name: Deploy to k3s with Local Build
+name: (Deprecated) Deploy to k3s with Local Build
 
 on:
   workflow_dispatch:
