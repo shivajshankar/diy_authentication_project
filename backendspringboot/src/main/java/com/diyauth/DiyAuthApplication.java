@@ -16,6 +16,6 @@ public class DiyAuthApplication {
     private static final Logger logger = LoggerFactory.getLogger(DiyAuthApplication.class);
     public static void main(String[] args) {
         SpringApplication.run(DiyAuthApplication.class, args);
-        logger.info("== DIY Auth Application started successfully ==");
+        logger.info("=== DIY Auth Application started successfully ===");
     }
 }
