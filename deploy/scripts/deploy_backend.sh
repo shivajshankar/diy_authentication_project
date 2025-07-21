@@ -50,10 +50,13 @@ build_and_import_backend() {
     
     pushd "${context}" > /dev/null || { echo -e "${RED}Failed to change to directory: ${context}${NC}"; return 1; }
     
-    # Enable BuildKit with legacy builder for better caching
-    export DOCKER_BUILDKIT=1
+    # Force legacy builder and disable BuildKit
+    export DOCKER_BUILDKIT=0
+    export COMPOSE_DOCKER_CLI_BUILD=0
     
-    # Build the Docker image with BuildKit
+    echo -e "${YELLOW}Using legacy Docker builder (BuildKit disabled)${NC}"
+    
+    # Build the Docker image with legacy builder
     if ! docker build \
         --progress=plain \
         -t "${full_image_name}" \
