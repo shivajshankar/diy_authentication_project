@@ -91,21 +91,26 @@ jobs:
 
     - name: Deploy Frontend
       run: |
-        # Make the script executable
-        chmod +x ${{ env.WORKING_DIR }}/deploy/scripts/deploy_frontend.sh
-        
-        # Run the deployment script
-        cd ${{ env.WORKING_DIR }} && \
-        NAMESPACE=${{ env.NAMESPACE }} \
-        WORKING_DIR=${{ env.WORKING_DIR }} \
-        FRONTEND_IMAGE=${{ env.FRONTEND_IMAGE }} \
-        K3S_DIR=${{ env.K3S_DIR }} \
-        FRONTEND_URL=${{ env.FRONTEND_URL }} \
-        BACKEND_URL=${{ env.BACKEND_URL }} \
-        ./deploy/scripts/deploy_frontend.sh
-        
-        # Force rollout of the deployment to ensure new image is used
+        # Copy the script to the server and make it executable
+        scp -o StrictHostKeyChecking=no \
+          ./deploy/scripts/deploy_frontend.sh \
+          ${{ env.SSH_USER }}@${{ env.SERVER_IP }}:${{ env.WORKING_DIR }}/deploy/scripts/
+            
+        # Run the deployment script on the server
         ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} "
+          cd ${{ env.WORKING_DIR }}
+          chmod +x ./deploy/scripts/deploy_frontend.sh
+          
+          # Set environment variables and run the script
+          NAMESPACE='${{ env.NAMESPACE }}' \
+          WORKING_DIR='${{ env.WORKING_DIR }}' \
+          FRONTEND_IMAGE='${{ env.FRONTEND_IMAGE }}' \
+          K3S_DIR='${{ env.K3S_DIR }}' \
+          FRONTEND_URL='${{ env.FRONTEND_URL }}' \
+          BACKEND_URL='${{ env.BACKEND_URL }}' \
+          ./deploy/scripts/deploy_frontend.sh
+          
+          # Force rollout of the deployment to ensure new image is used
           sudo k3s kubectl -n ${{ env.NAMESPACE }} rollout restart deployment/auth-frontend
           sudo k3s kubectl -n ${{ env.NAMESPACE }} rollout status deployment/auth-frontend --timeout=120s
         "
