@@ -155,12 +155,6 @@ const Login1 = () => {
               
               <div className="text-center mt-3">
                 <p className="mb-0">
-                  Don't have an account?{' '}
-                  <Link to="/register" className="text-decoration-none">
-                    Sign up
-                  </Link>
-                </p>
-                <p className="mt-2 mb-0">
                   <Link to="/login/sso" className="text-decoration-none">
                     Sign in with SSO
                   </Link>
