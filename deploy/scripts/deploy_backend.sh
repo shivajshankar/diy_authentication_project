@@ -48,74 +48,35 @@ build_and_import_backend() {
     
     echo -e "${GREEN}Building ${full_image_name}...${NC}"
     
-    # Change to the context directory
     pushd "${context}" > /dev/null || { echo -e "${RED}Failed to change to directory: ${context}${NC}"; return 1; }
     
-    # Build the Docker image with appropriate build args
-    local build_cmd="docker build -t ${full_image_name} -f ${dockerfile}"
-    
-    # Add build args for backend
-    build_cmd+=" --build-arg SPRING_PROFILES_ACTIVE=prod"
-    build_cmd+=" --build-arg MONGODB_URI=${MONGODB_URI}"
-    build_cmd+=" --build-arg JWT_SECRET=${JWT_SECRET}"
-    build_cmd+=" --build-arg JWT_EXPIRATION_MS=${JWT_EXPIRATION_MS}"
-    build_cmd+=" --build-arg GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"
-    build_cmd+=" --build-arg GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}"
-    build_cmd+=" --build-arg APP_URL=${BACKEND_URL}"
-    build_cmd+=" --build-arg CORS_ALLOWED_ORIGINS=\"${FRONTEND_URL},http://localhost:3000,http://localhost\""
-    
-    build_cmd+=" ."
-    
-    if ! eval "${build_cmd}"; then
-        echo -e "${RED}Error building ${full_image_name}${NC}"
-        popd > /dev/null || true
+    # Build the Docker image
+    if ! docker build \
+        -t "${full_image_name}" \
+        -f "${dockerfile}" \
+        --build-arg SPRING_PROFILES_ACTIVE=prod \
+        --build-arg MONGODB_URI="${MONGODB_URI}" \
+        --build-arg JWT_SECRET="${JWT_SECRET}" \
+        --build-arg JWT_EXPIRATION_MS="${JWT_EXPIRATION_MS}" \
+        --build-arg GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID}" \
+        --build-arg GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET}" \
+        --build-arg APP_URL="${BACKEND_URL}" \
+        --build-arg CORS_ALLOWED_ORIGINS="${FRONTEND_URL}" \
+        .; then
+        echo -e "${RED}Failed to build Docker image${NC}"
         return 1
     fi
     
-    # Clean up old images before importing new ones
-    cleanup_old_images
+    popd > /dev/null || return 1
     
-    # Import into k3s
-    echo -e "${GREEN}Importing ${full_image_name} into k3s...${NC}"
+    # Import the image into k3s
+    echo -e "\n${GREEN}Importing ${full_image_name} into k3s...${NC}"
     if ! docker save "${full_image_name}" | sudo k3s ctr images import -; then
-        echo -e "${RED}Error importing ${full_image_name} into k3s${NC}"
-        popd > /dev/null || true
+        echo -e "${RED}Failed to import image into k3s${NC}"
         return 1
     fi
     
-    popd > /dev/null || true
     echo -e "${GREEN}Successfully built and imported ${full_image_name}${NC}"
-}
-
-# Function to apply configurations if directory exists
-apply_if_exists() {
-    local config_type=$1
-    local dir_path=$2
-    
-    if [ -d "$dir_path" ]; then
-        # Skip if directory is empty
-        if [ -z "$(ls -A "$dir_path" 2>/dev/null)" ]; then
-            echo -e "${YELLOW}Skipping ${config_type} - ${dir_path} is empty${NC}"
-            return 0
-        fi
-        
-        echo -e "${GREEN}Applying ${config_type} from ${dir_path}...${NC}"
-        
-        # For secrets, only apply YAML/JSON files
-        if [ "$config_type" = "Secrets" ]; then
-            for file in "$dir_path"/{*.yaml,*.yml,*.json}; do
-                if [ -f "$file" ]; then
-                    echo "Applying $(basename "$file")"
-                    kubectl apply -f "$file"
-                fi
-            done
-        else
-            kubectl apply -f "$dir_path"
-        fi
-    else
-        echo -e "${YELLOW}Skipping ${config_type} - ${dir_path} not found${NC}"
-        return 0
-    fi
 }
 
 # Main deployment process
@@ -146,60 +107,82 @@ main() {
     echo -e "\n${GREEN}=== Building Backend ===${NC}"
     build_and_import_backend
     
-    # Verify deployment file exists
-    if [ ! -f "${K3S_DIR}/deployments/backend-deployment.yaml" ]; then
-        echo -e "${RED}Backend deployment file not found in ${K3S_DIR}/deployments/${NC}"
-        exit 1
-    fi
-    
-    # Update image reference in deployment file
-    echo -e "\n${GREEN}Updating backend image reference...${NC}"
-    sed -i "s|image: .*|image: ${BACKEND_IMAGE}:latest|" "${K3S_DIR}/deployments/backend-deployment.yaml"
+    # List all YAML files for debugging
+    echo -e "\n${YELLOW}=== Available YAML Files ===${NC}"
+    find "${K3S_DIR}" -type f \( -name "*.yaml" -o -name "*.yml" \) -print0 | sort -z | xargs -0 ls -la
+    echo -e "${YELLOW}============================${NC}\n"
     
     # Apply Kubernetes configurations
     echo -e "\n${GREEN}=== Applying Backend Kubernetes Configurations ===${NC}"
     
     # 1. Create namespace
-    apply_if_exists "namespace" "${K3S_DIR}/namespaces/"
+    if [ -f "${K3S_DIR}/namespaces/auth-namespace.yaml" ]; then
+        echo -e "${GREEN}Applying auth namespace...${NC}"
+        kubectl apply -f "${K3S_DIR}/namespaces/auth-namespace.yaml"
+    else
+        echo -e "${YELLOW}Auth namespace file not found at ${K3S_DIR}/namespaces/auth-namespace.yaml${NC}"
+    fi
     
-    # 2. Apply ConfigMaps (only backend related)
-    if [ -d "${K3S_DIR}/configs/" ]; then
-        echo -e "${GREEN}Applying backend ConfigMaps...${NC}"
-        for file in "${K3S_DIR}/configs/"*-backend-*; do
-            if [ -f "$file" ]; then
-                kubectl apply -f "$file"
-            fi
-        done
+    # 2. Apply ConfigMaps
+    if [ -f "${K3S_DIR}/configs/backend-config.yaml" ]; then
+        echo -e "${GREEN}Applying backend config...${NC}"
+        kubectl apply -f "${K3S_DIR}/configs/backend-config.yaml"
+    else
+        echo -e "${YELLOW}Backend config file not found at ${K3S_DIR}/configs/backend-config.yaml${NC}"
     fi
     
     # 3. Apply Secrets
-    apply_if_exists "Secrets" "${K3S_DIR}/secrets/"
+    if [ -f "${K3S_DIR}/secrets/backend-secrets.yaml" ]; then
+        echo -e "${GREEN}Applying backend secrets...${NC}"
+        kubectl apply -f "${K3S_DIR}/secrets/backend-secrets.yaml"
+    else
+        echo -e "${YELLOW}Backend secrets file not found at ${K3S_DIR}/secrets/backend-secrets.yaml${NC}"
+    fi
     
     # 4. Deploy backend
-    apply_if_exists "backend deployment" "${K3S_DIR}/deployments/backend-deployment.yaml"
+    if [ -f "${K3S_DIR}/deployments/backend-deployment.yaml" ]; then
+        echo -e "${GREEN}Applying backend deployment...${NC}"
+        kubectl apply -f "${K3S_DIR}/deployments/backend-deployment.yaml"
+    else
+        echo -e "${RED}Backend deployment file not found at ${K3S_DIR}/deployments/backend-deployment.yaml${NC}"
+        exit 1
+    fi
     
     # 5. Create backend service
     if [ -f "${K3S_DIR}/services/backend-service.yaml" ]; then
-        apply_if_exists "backend service" "${K3S_DIR}/services/backend-service.yaml"
+        echo -e "${GREEN}Applying backend service...${NC}"
+        kubectl apply -f "${K3S_DIR}/services/backend-service.yaml"
+    else
+        echo -e "${YELLOW}Backend service file not found at ${K3S_DIR}/services/backend-service.yaml${NC}"
     fi
     
-    # 6. Set up ingress (only if it contains backend rules)
-    if [ -f "${K3S_DIR}/ingresses/backend-ingress.yaml" ]; then
-        apply_if_exists "backend ingress" "${K3S_DIR}/ingresses/backend-ingress.yaml"
+    # 6. Set up ingress
+    if [ -f "${K3S_DIR}/ingresses/auth-ingress.yaml" ]; then
+        echo -e "${GREEN}Applying auth ingress...${NC}"
+        kubectl apply -f "${K3S_DIR}/ingresses/auth-ingress.yaml"
+    else
+        echo -e "${YELLOW}Auth ingress file not found at ${K3S_DIR}/ingresses/auth-ingress.yaml${NC}"
     fi
     
     # 7. Restart backend deployment
     echo -e "\n${GREEN}=== Restarting Backend Deployment ===${NC}"
-    kubectl rollout restart deployment -n "${NAMESPACE}" -l app=backend
+    if kubectl get deployment -n "${NAMESPACE}" -l app=auth-backend &> /dev/null; then
+        kubectl rollout restart deployment -n "${NAMESPACE}" -l app=auth-backend
+    else
+        echo -e "${YELLOW}No deployments found with label app=auth-backend${NC}"
+    fi
     
     # 8. Verify deployment
     echo -e "\n${GREEN}=== Backend Deployment Status ===${NC}"
-    kubectl get pods,svc,ingress -n "${NAMESPACE}" -l app=backend
+    kubectl get pods,svc,ingress -n "${NAMESPACE}" -l app=auth-backend || \
+        echo -e "${YELLOW}No resources found with label app=auth-backend${NC}"
     
     # 9. Check backend health
-    echo -e "\n${GREEN}=== Backend Health Check ===${NC}"
-    echo -n "Backend health status: "
-    curl -s -o /dev/null -w "%{http_code}" ${BACKEND_URL}/actuator/health || echo "unreachable"
+    if [ -n "${BACKEND_URL}" ]; then
+        echo -e "\n${GREEN}=== Backend Health Check ===${NC}"
+        echo -n "Backend health status: "
+        curl -s -o /dev/null -w "%{http_code}" "${BACKEND_URL}/actuator/health" || echo "unreachable"
+    fi
     
     # 10. Clean up old images one final time
     cleanup_old_images
