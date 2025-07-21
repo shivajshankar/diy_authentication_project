@@ -50,6 +50,34 @@ jobs:
           ./deploy/scripts/deploy_backend.sh \
           ${{ env.SSH_USER }}@${{ env.SERVER_IP }}:${{ env.WORKING_DIR }}/deploy/scripts/
 
+    - name: Sync source code to server
+      run: |
+        # Create a clean copy of the repository
+        mkdir -p /tmp/repo_sync
+        cp -r . /tmp/repo_sync/
+        
+        # Remove unnecessary files to reduce transfer size
+        rm -rf /tmp/repo_sync/.git
+        rm -rf /tmp/repo_sync/node_modules
+        
+        # Sync the code to the server
+        rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+          --delete \
+          --exclude='.git' \
+          --exclude='node_modules' \
+          /tmp/repo_sync/ \
+          ${{ env.SSH_USER }}@${{ env.SERVER_IP }}:${{ env.WORKING_DIR}}/
+        
+        # Clean up
+        rm -rf /tmp/repo_sync
+
+    - name: Set execute permissions on server
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} "
+          # Set execute permissions on the deployment script
+          chmod +x ${{ env.WORKING_DIR }}/deploy/scripts/deploy_backend.sh
+        "
+
     - name: Copy backend code to server
       run: |
         # First, copy all Kubernetes resources
