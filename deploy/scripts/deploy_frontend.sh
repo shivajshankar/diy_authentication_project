@@ -38,41 +38,40 @@ build_and_import_frontend() {
     local context="nodejs/loginscreen"
     local dockerfile="Dockerfile"
     local image_name="${FRONTEND_IMAGE}"
-    # Use timestamp as tag to ensure unique builds
-    local tag="$(date +%Y%m%d%H%M%S)"
+    local tag="latest"
     local full_image_name="${image_name}:${tag}"
     
     echo -e "${GREEN}Building ${full_image_name}...${NC}"
     
     pushd "${context}" > /dev/null || { echo -e "${RED}Failed to change to directory: ${context}${NC}"; return 1; }
     
-    # Build the Docker image with --no-cache and --pull to ensure clean build
-    if ! docker build \
-        --no-cache \
-        --pull \
-        -t "${full_image_name}" \
-        -f "${dockerfile}" \
-        --build-arg REACT_APP_API_URL="${BACKEND_URL}/api" \
-        --build-arg REACT_APP_ENV="production" \
-        --build-arg REACT_APP_GOOGLE_AUTH_URL="${BACKEND_URL}/oauth2/authorization/google" \
-        .; then
-        echo -e "${RED}Failed to build frontend Docker image${NC}"
+    # Build the Docker image with --no-cache and proper build args
+    local build_cmd="docker build --no-cache -t ${full_image_name} -f ${dockerfile}"
+    
+    # Add build args for frontend
+    build_cmd+=" --build-arg REACT_APP_API_URL=\"${BACKEND_URL}/api\""
+    build_cmd+=" --build-arg REACT_APP_ENV=\"production\""
+    build_cmd+=" --build-arg REACT_APP_GOOGLE_AUTH_URL=\"${BACKEND_URL}/oauth2/authorization/google\""
+    build_cmd+=" ."
+    
+    if ! eval "${build_cmd}"; then
+        echo -e "${RED}Error building ${full_image_name}${NC}"
         popd > /dev/null || true
         return 1
     fi
     
-    popd > /dev/null || return 1
+    # Clean up old images before importing new ones
+    cleanup_old_images
     
-    # Import the image into k3s
-    echo -e "\n${GREEN}Importing ${full_image_name} into k3s...${NC}"
+    # Import into k3s
+    echo -e "${GREEN}Importing ${full_image_name} into k3s...${NC}"
     if ! docker save "${full_image_name}" | sudo k3s ctr images import -; then
-        echo -e "${RED}Failed to import frontend image into k3s${NC}"
+        echo -e "${RED}Error importing ${full_image_name} into k3s${NC}"
+        popd > /dev/null || true
         return 1
     fi
     
-    # Tag the image as latest
-    sudo k3s ctr images tag "docker.io/library/${full_image_name}" "docker.io/library/${image_name}:latest"
-    
+    popd > /dev/null || true
     echo -e "${GREEN}Successfully built and imported ${full_image_name}${NC}"
 }
 
