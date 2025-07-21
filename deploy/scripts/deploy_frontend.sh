@@ -45,8 +45,8 @@ build_and_import_frontend() {
     
     pushd "${context}" > /dev/null || { echo -e "${RED}Failed to change to directory: ${context}${NC}"; return 1; }
     
-    # Build the Docker image with --no-cache and proper build args
-    local build_cmd="docker build --no-cache -t ${full_image_name} -f ${dockerfile}"
+    # Build the Docker image with proper build args
+    local build_cmd="docker build -t ${full_image_name} -f ${dockerfile}"
     
     # Add build args for frontend
     build_cmd+=" --build-arg REACT_APP_API_URL=\"${BACKEND_URL}/api\""
