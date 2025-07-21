@@ -76,6 +76,15 @@ build_and_import_backend() {
         return 1
     fi
     
+    # Verify the image was imported
+    if ! sudo k3s ctr images ls | grep -q "${image_name}.*${tag}"; then
+        echo -e "${YELLOW}Warning: Could not verify image was imported into k3s, but continuing deployment${NC}"
+        echo -e "${YELLOW}Current k3s images:${NC}"
+        sudo k3s ctr images ls | grep -i "${image_name}" || echo "No matching images found"
+    else
+        echo -e "${GREEN}Successfully verified ${image_name}:${tag} in k3s${NC}"
+    fi
+    
     echo -e "${GREEN}Successfully built and imported ${full_image_name}${NC}"
 }
 
