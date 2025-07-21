@@ -41,7 +41,6 @@ cleanup_old_images() {
 # Function to build and import Docker image
 build_and_import_backend() {
     local context="."
-    local dockerfile="Dockerfile.backend"
     local image_name="${BACKEND_IMAGE}"
     local tag="latest"
     local full_image_name="${image_name}:${tag}"
@@ -50,17 +49,19 @@ build_and_import_backend() {
     
     pushd "${context}" > /dev/null || { echo -e "${RED}Failed to change to directory: ${context}${NC}"; return 1; }
     
-    # Force legacy builder and disable BuildKit
-    export DOCKER_BUILDKIT=0
-    export COMPOSE_DOCKER_CLI_BUILD=0
+    # Build the JAR file using Maven directly on the host
+    echo -e "${GREEN}Building JAR file with Maven...${NC}"
+    if ! mvn clean package -DskipTests; then
+        echo -e "${RED}Failed to build JAR with Maven${NC}"
+        return 1
+    fi
     
-    echo -e "${YELLOW}Using legacy Docker builder (BuildKit disabled)${NC}"
-    
-    # Build the Docker image with legacy builder
+    # Build the Docker image using the pre-built JAR
+    echo -e "${GREEN}Building Docker image...${NC}"
     if ! docker build \
         -t "${full_image_name}" \
-        -f "${dockerfile}" \
-        --build-arg SPRING_PROFILES_ACTIVE=prod \
+        -f "Dockerfile.runtime" \
+        --build-arg JAR_FILE=target/*.jar \
         --build-arg MONGODB_URI="${MONGODB_URI}" \
         --build-arg JWT_SECRET="${JWT_SECRET}" \
         --build-arg JWT_EXPIRATION_MS="${JWT_EXPIRATION_MS}" \

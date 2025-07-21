@@ -1,0 +1,25 @@
+# Use a minimal JRE base image
+FROM eclipse-temurin:17-jre-jammy
+
+# Set working directory
+WORKDIR /app
+
+# Copy the pre-built JAR file
+ARG JAR_FILE
+COPY ${JAR_FILE} app.jar
+
+# Expose the port the app runs on
+EXPOSE 8080
+
+# Set environment variables with defaults
+ENV SPRING_PROFILES_ACTIVE=prod
+ENV MONGODB_URI=
+ENV JWT_SECRET=
+ENV JWT_EXPIRATION_MS=86400000
+ENV GOOGLE_CLIENT_ID=
+ENV GOOGLE_CLIENT_SECRET=
+ENV APP_URL=
+ENV CORS_ALLOWED_ORIGINS=
+
+# Set the entry point
+ENTRYPOINT ["sh", "-c", "java -jar app.jar"]
