@@ -6,12 +6,12 @@ on:
 env:
   SERVER_IP: shivajshankar1.duckdns.org
   SSH_USER: ubuntu
-  WORKING_DIR: /home/ubuntu/githubautomation/diy_authentication_project
+  WORKING_DIR: /home/ubuntu/githubautomation_be
   BACKEND_IMAGE: diy-auth-backend
   NAMESPACE: auth-app
   FRONTEND_URL: http://shivajshankar1.duckdns.org:3000
   BACKEND_URL: http://shivajshankar1.duckdns.org:8080
-  K3S_DIR: /home/ubuntu/githubautomation/diy_authentication_project/deploy/k3s
+  K3S_DIR: /home/ubuntu/githubautomation_be/deploy/k3s
 
 jobs:
   deploy-backend:
