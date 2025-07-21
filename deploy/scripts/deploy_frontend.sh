@@ -38,16 +38,18 @@ build_and_import_frontend() {
     local context="nodejs/loginscreen"
     local dockerfile="Dockerfile"
     local image_name="${FRONTEND_IMAGE}"
-    local tag="latest"
+    # Use timestamp as tag to ensure unique builds
+    local tag="$(date +%Y%m%d%H%M%S)"
     local full_image_name="${image_name}:${tag}"
     
     echo -e "${GREEN}Building ${full_image_name}...${NC}"
     
     pushd "${context}" > /dev/null || { echo -e "${RED}Failed to change to directory: ${context}${NC}"; return 1; }
     
-    # Build the Docker image
+    # Build the Docker image with --no-cache and --pull to ensure clean build
     if ! docker build \
         --no-cache \
+        --pull \
         -t "${full_image_name}" \
         -f "${dockerfile}" \
         --build-arg REACT_APP_API_URL="${BACKEND_URL}/api" \
@@ -67,6 +69,9 @@ build_and_import_frontend() {
         echo -e "${RED}Failed to import frontend image into k3s${NC}"
         return 1
     fi
+    
+    # Tag the image as latest
+    sudo k3s ctr images tag "docker.io/library/${full_image_name}" "docker.io/library/${image_name}:latest"
     
     echo -e "${GREEN}Successfully built and imported ${full_image_name}${NC}"
 }

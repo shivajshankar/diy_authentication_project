@@ -89,30 +89,26 @@ jobs:
           docker system prune -f
         "
 
-    - name: Run frontend deployment script
+    - name: Deploy Frontend
       run: |
-        ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} << 'ENDSSH'
-          cd ${{ env.WORKING_DIR }}
-          
-          # Verify the script exists and is executable
-          if [ ! -f "./deploy/scripts/deploy_frontend.sh" ]; then
-            echo "Error: deploy_frontend.sh not found on the server"
-            ls -la ./deploy/scripts/
-            exit 1
-          fi
-          
-          if [ ! -x "./deploy/scripts/deploy_frontend.sh" ]; then
-            echo "Making script executable..."
-            chmod +x ./deploy/scripts/deploy_frontend.sh
-          fi
-          
-          # Set environment variables
-          export FRONTEND_URL='${{ env.FRONTEND_URL }}'
-          export BACKEND_URL='${{ env.BACKEND_URL }}'
-          
-          # Run the script
-          ./deploy/scripts/deploy_frontend.sh
-        ENDSSH
+        # Make the script executable
+        chmod +x ${{ env.WORKING_DIR }}/deploy/scripts/deploy_frontend.sh
+        
+        # Run the deployment script
+        cd ${{ env.WORKING_DIR }} && \
+        NAMESPACE=${{ env.NAMESPACE }} \
+        WORKING_DIR=${{ env.WORKING_DIR }} \
+        FRONTEND_IMAGE=${{ env.FRONTEND_IMAGE }} \
+        K3S_DIR=${{ env.K3S_DIR }} \
+        FRONTEND_URL=${{ env.FRONTEND_URL }} \
+        BACKEND_URL=${{ env.BACKEND_URL }} \
+        ./deploy/scripts/deploy_frontend.sh
+        
+        # Force rollout of the deployment to ensure new image is used
+        ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} "
+          sudo k3s kubectl -n ${{ env.NAMESPACE }} rollout restart deployment/auth-frontend
+          sudo k3s kubectl -n ${{ env.NAMESPACE }} rollout status deployment/auth-frontend --timeout=120s
+        "
 
     - name: Verify frontend deployment
       run: |
