@@ -63,13 +63,51 @@ build_and_import_frontend() {
     # Clean up old images before importing new ones
     cleanup_old_images
     
-    # Import into k3s
-    echo -e "${GREEN}Importing ${full_image_name} into k3s...${NC}"
-    if ! docker save "${full_image_name}" | sudo k3s ctr images import -; then
-        echo -e "${RED}Error importing ${full_image_name} into k3s${NC}"
+    # Remove any existing frontend images from k3s
+    echo -e "${GREEN}Checking for existing frontend images in k3s...${NC}"
+    existing_images=$(sudo k3s ctr images ls | grep "${image_name}:" || true)
+    
+    if [ -n "$existing_images" ]; then
+        echo -e "${YELLOW}Found existing frontend images, removing them...${NC}"
+        echo "$existing_images" | while read -r img; do
+            img_ref=$(echo "$img" | awk '{print $1}')
+            echo "Removing $img_ref..."
+            sudo k3s ctr images rm "$img_ref" || true
+        done
+        echo -e "${GREEN}Removed existing frontend images from k3s${NC}"
+    else
+        echo -e "${GREEN}No existing frontend images found in k3s${NC}"
+    fi
+    
+    # Save the image to a file
+    local image_tar="/tmp/${image_name}_${tag}.tar"
+    echo -e "\n${GREEN}Saving ${full_image_name} to ${image_tar}...${NC}"
+    if ! docker save -o "${image_tar}" "${full_image_name}"; then
+        echo -e "${RED}Error saving ${full_image_name} to ${image_tar}${NC}"
         popd > /dev/null || true
         return 1
     fi
+    
+    # Import the saved image into k3s
+    echo -e "\n${GREEN}Importing ${image_tar} into k3s...${NC}"
+    if ! sudo k3s ctr images import "${image_tar}"; then
+        echo -e "${RED}Error importing ${image_tar} into k3s${NC}"
+        # Clean up the temporary file
+        rm -f "${image_tar}" || true
+        popd > /dev/null || true
+        return 1
+    fi
+    
+    # Verify the image was imported
+    if ! sudo k3s ctr images ls | grep -q "${full_image_name}"; then
+        echo -e "${RED}Error: Failed to verify image was imported into k3s${NC}"
+        rm -f "${image_tar}" || true
+        popd > /dev/null || true
+        return 1
+    fi
+    
+    # Clean up the temporary file
+    rm -f "${image_tar}" || true
     
     popd > /dev/null || true
     echo -e "${GREEN}Successfully built and imported ${full_image_name}${NC}"
