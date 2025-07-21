@@ -50,8 +50,13 @@ build_and_import_backend() {
     
     pushd "${context}" > /dev/null || { echo -e "${RED}Failed to change to directory: ${context}${NC}"; return 1; }
     
-    # Build the Docker image
+    # Enable Docker BuildKit for better caching
+    export DOCKER_BUILDKIT=1
+    
+    # Build the Docker image with BuildKit
     if ! docker build \
+        --progress=plain \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
         -t "${full_image_name}" \
         -f "${dockerfile}" \
         --build-arg SPRING_PROFILES_ACTIVE=prod \
