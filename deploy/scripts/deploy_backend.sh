@@ -58,7 +58,6 @@ build_and_import_backend() {
     
     # Build the Docker image with legacy builder
     if ! docker build \
-        --progress=plain \
         -t "${full_image_name}" \
         -f "${dockerfile}" \
         --build-arg SPRING_PROFILES_ACTIVE=prod \
