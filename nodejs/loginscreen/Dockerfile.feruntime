@@ -1,0 +1,21 @@
+# Lightweight runtime image for serving the React app
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install serve globally to serve static files
+RUN npm install -g serve
+
+# Copy only the built files
+COPY build/ ./build/
+
+# Expose port 3000 for the production server
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+# Start the production server with environment-based configuration
+CMD ["sh", "-c", "serve -s build -l 3000"]

@@ -36,25 +36,17 @@ cleanup_old_images() {
 # Function to build and import Docker image
 build_and_import_frontend() {
     local context="nodejs/loginscreen"
-    local dockerfile="Dockerfile"
+    local dockerfile="Dockerfile.feruntime"
     local image_name="${FRONTEND_IMAGE}"
     local tag="latest"
     local full_image_name="${image_name}:${tag}"
     
-    echo -e "${GREEN}Building ${full_image_name}...${NC}"
+    echo -e "${GREEN}Building ${full_image_name} with ${dockerfile}...${NC}"
     
     pushd "${context}" > /dev/null || { echo -e "${RED}Failed to change to directory: ${context}${NC}"; return 1; }
     
-    # Build the Docker image with proper build args
-    local build_cmd="docker build -t ${full_image_name} -f ${dockerfile}"
-    
-    # Add build args for frontend
-    build_cmd+=" --build-arg REACT_APP_API_URL=\"${BACKEND_URL}/api\""
-    build_cmd+=" --build-arg REACT_APP_ENV=\"production\""
-    build_cmd+=" --build-arg REACT_APP_GOOGLE_AUTH_URL=\"${BACKEND_URL}/oauth2/authorization/google\""
-    build_cmd+=" ."
-    
-    if ! eval "${build_cmd}"; then
+    # Build the Docker image with the runtime-only Dockerfile
+    if ! docker build -t "${full_image_name}" -f "${dockerfile}" .; then
         echo -e "${RED}Error building ${full_image_name}${NC}"
         popd > /dev/null || true
         return 1
@@ -169,8 +161,37 @@ main() {
     # Clean up old images before starting new build
     cleanup_old_images
     
-    # Build and import frontend image
-    echo -e "\n${GREEN}=== Building Frontend ===${NC}"
+    # Build the React app locally first
+    echo -e "\n${GREEN}=== Building React Application Locally ===${NC}"
+    pushd "nodejs/loginscreen" > /dev/null || {
+        echo -e "${RED}Failed to change to frontend directory${NC}"
+        exit 1
+    }
+    
+    # Install dependencies if needed
+    if [ ! -d "node_modules" ]; then
+        echo -e "${GREEN}Installing dependencies...${NC}"
+        npm ci --no-audit --prefer-offline || {
+            echo -e "${RED}Failed to install dependencies${NC}"
+            popd > /dev/null
+            exit 1
+        }
+    fi
+    
+    # Build the React app
+    echo -e "${GREEN}Building production bundle...${NC}"
+    REACT_APP_API_URL="${BACKEND_URL}/api" \
+    REACT_APP_GOOGLE_AUTH_URL="${BACKEND_URL}/oauth2/authorization/google" \
+    REACT_APP_ENV="production" \
+    npm run build || {
+        echo -e "${RED}Failed to build React application${NC}"
+        popd > /dev/null
+        exit 1
+    }
+    popd > /dev/null
+    
+    # Build and import frontend image using Dockerfile.feruntime
+    echo -e "\n${GREEN}=== Building and Importing Frontend Image ===${NC}"
     build_and_import_frontend
     
     # List all YAML files for debugging
