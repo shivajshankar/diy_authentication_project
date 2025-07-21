@@ -28,17 +28,30 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-    - name: Copy backend code to server
+    - name: Create necessary directories on server
       run: |
-        # Create working directory
         ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} "
-          mkdir -p ${{ env.WORKING_DIR }}
+          mkdir -p ${{ env.WORKING_DIR }}/deploy/scripts
         "
+
+    - name: Copy deployment script to server
+      run: |
+        # Make sure the local script exists
+        if [ ! -f "./deploy/scripts/deploy_backend.sh" ]; then
+          echo "Error: deploy_backend.sh not found locally"
+          exit 1
+        fi
         
-        # Make deploy script executable
+        # Make the script executable
         chmod +x ./deploy/scripts/deploy_backend.sh
         
-        # Copy only necessary files for backend
+        # Copy the script to the server
+        scp -o StrictHostKeyChecking=no \
+          ./deploy/scripts/deploy_backend.sh \
+          ${{ env.SSH_USER }}@${{ env.SERVER_IP }}:${{ env.WORKING_DIR }}/deploy/scripts/
+
+    - name: Copy backend code to server
+      run: |
         rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
           --exclude='.git' \
           --exclude='node_modules' \
@@ -47,7 +60,6 @@ jobs:
           --include='src/**' \
           --include='pom.xml' \
           --include='Dockerfile.backend' \
-          --include='deploy/scripts/deploy_backend.sh' \
           --include='deploy/k3s/namespaces/' \
           --include='deploy/k3s/namespaces/*' \
           --include='deploy/k3s/configs/backend-*' \
@@ -77,6 +89,18 @@ jobs:
         ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} << 'ENDSSH'
           cd ${{ env.WORKING_DIR }}
           
+          # Verify the script exists and is executable
+          if [ ! -f "./deploy/scripts/deploy_backend.sh" ]; then
+            echo "Error: deploy_backend.sh not found on the server"
+            ls -la ./deploy/scripts/
+            exit 1
+          fi
+          
+          if [ ! -x "./deploy/scripts/deploy_backend.sh" ]; then
+            echo "Making script executable..."
+            chmod +x ./deploy/scripts/deploy_backend.sh
+          fi
+          
           # Set environment variables
           export MONGODB_URI='${{ secrets.MONGODB_URI }}'
           export JWT_SECRET='${{ secrets.JWT_SECRET }}'
@@ -86,8 +110,7 @@ jobs:
           export FRONTEND_URL='${{ env.FRONTEND_URL }}'
           export BACKEND_URL='${{ env.BACKEND_URL }}'
           
-          # Make script executable and run it
-          chmod +x ./deploy/scripts/deploy_backend.sh
+          # Run the script
           ./deploy/scripts/deploy_backend.sh
         ENDSSH
 
