@@ -12,7 +12,7 @@ NAMESPACE=${NAMESPACE:-auth-app}
 WORKING_DIR=${WORKING_DIR:-/home/ubuntu/githubautomation_be}
 BACKEND_IMAGE=${BACKEND_IMAGE:-diy-auth-backend}
 K3S_DIR=${K3S_DIR:-$WORKING_DIR/deploy/k3s}
-CLEANUP_SCRIPT="$WORKING_DIR/deploy/scripts/cleanup_k3s_images.sh"
+CLEANUP_SCRIPT="$WORKING_DIR/deploy/scripts/cleanup_backend_images.sh"
 
 # Environment variables with defaults
 MONGODB_URI=${MONGODB_URI:-}
