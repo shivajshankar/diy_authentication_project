@@ -112,9 +112,14 @@ main() {
         exit 1
     fi
     
-    # Verify backend directory exists
-    if [ ! -f "pom.xml" ] && [ ! -f "build.gradle" ]; then
-        echo -e "${RED}Backend build file (pom.xml or build.gradle) not found in ${WORKING_DIR}${NC}"
+    # Verify backend directory and build file exists
+    if [ ! -d "backendspringboot" ]; then
+        echo -e "${RED}Backend directory not found at ${WORKING_DIR}/backendspringboot${NC}"
+        exit 1
+    fi
+    
+    if [ ! -f "backendspringboot/pom.xml" ] && [ ! -f "backendspringboot/build.gradle" ]; then
+        echo -e "${RED}Backend build file (pom.xml or build.gradle) not found in ${WORKING_DIR}/backendspringboot${NC}"
         exit 1
     fi
     
