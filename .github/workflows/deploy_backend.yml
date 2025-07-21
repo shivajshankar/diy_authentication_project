@@ -71,13 +71,6 @@ jobs:
         # Clean up
         rm -rf /tmp/repo_sync
 
-    - name: Set execute permissions on server
-      run: |
-        ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} "
-          # Set execute permissions on the deployment script
-          chmod +x ${{ env.WORKING_DIR }}/deploy/scripts/deploy_backend.sh
-        "
-
     - name: Copy backend code to server
       run: |
         # First, copy all Kubernetes resources
@@ -86,9 +79,10 @@ jobs:
           --exclude='node_modules' \
           --exclude='.idea' \
           --exclude='*.iml' \
-          --include='src/**' \
-          --include='pom.xml' \
-          --include='Dockerfile.backend' \
+          --include='backendspringboot/' \
+          --include='backendspringboot/src/**' \
+          --include='backendspringboot/pom.xml' \
+          --include='backendspringboot/Dockerfile.runtime' \
           --include='deploy/k3s/' \
           --include='deploy/k3s/namespaces/' \
           --include='deploy/k3s/namespaces/*' \
@@ -106,6 +100,13 @@ jobs:
           --exclude='*' \
           . \
           ${{ env.SSH_USER }}@${{ env.SERVER_IP }}:${{ env.WORKING_DIR}}/
+
+    - name: Set execute permissions on server
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SERVER_IP }} "
+          # Set execute permissions on the deployment script
+          chmod +x ${{ env.WORKING_DIR }}/deploy/scripts/deploy_backend.sh
+        "
 
     - name: Clean up Docker environment for backend
       run: |

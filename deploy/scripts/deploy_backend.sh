@@ -40,7 +40,7 @@ cleanup_old_images() {
 
 # Function to build and import Docker image
 build_and_import_backend() {
-    local context="."
+    local context="backendspringboot"
     local image_name="${BACKEND_IMAGE}"
     local tag="latest"
     local full_image_name="${image_name}:${tag}"
@@ -53,6 +53,7 @@ build_and_import_backend() {
     echo -e "${GREEN}Building JAR file with Maven...${NC}"
     if ! mvn clean package -DskipTests; then
         echo -e "${RED}Failed to build JAR with Maven${NC}"
+        popd > /dev/null || true
         return 1
     fi
     
@@ -71,6 +72,7 @@ build_and_import_backend() {
         --build-arg CORS_ALLOWED_ORIGINS="${FRONTEND_URL}" \
         .; then
         echo -e "${RED}Failed to build Docker image${NC}"
+        popd > /dev/null || true
         return 1
     fi
     
@@ -110,9 +112,14 @@ main() {
         exit 1
     fi
     
-    # Verify backend directory exists
-    if [ ! -f "pom.xml" ] && [ ! -f "build.gradle" ]; then
-        echo -e "${RED}Backend build file (pom.xml or build.gradle) not found in ${WORKING_DIR}${NC}"
+    # Verify backend directory and build file exists
+    if [ ! -d "backendspringboot" ]; then
+        echo -e "${RED}Backend directory not found at ${WORKING_DIR}/backendspringboot${NC}"
+        exit 1
+    fi
+    
+    if [ ! -f "backendspringboot/pom.xml" ] && [ ! -f "backendspringboot/build.gradle" ]; then
+        echo -e "${RED}Backend build file (pom.xml or build.gradle) not found in ${WORKING_DIR}/backendspringboot${NC}"
         exit 1
     fi
     
