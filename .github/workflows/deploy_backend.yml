@@ -2,17 +2,6 @@ name: Deploy Backend to k3s
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'src/**'
-      - 'pom.xml'
-      - 'Dockerfile.backend'
-      - 'deploy/k3s/deployments/backend-*.yaml'
-      - 'deploy/k3s/services/backend-*.yaml'
-      - 'deploy/k3s/ingresses/backend-*.yaml'
-      - 'deploy/k3s/configs/backend-*.yaml'
-      - 'deploy/k3s/secrets/**'
-      - '.github/workflows/deploy_backend.yml'
 
 env:
   SERVER_IP: shivajshankar1.duckdns.org

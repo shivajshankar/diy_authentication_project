@@ -2,13 +2,6 @@ name: Deploy Frontend to k3s
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'nodejs/loginscreen/**'
-      - 'deploy/k3s/deployments/frontend-*.yaml'
-      - 'deploy/k3s/services/frontend-*.yaml'
-      - 'deploy/k3s/ingresses/frontend-*.yaml'
-      - '.github/workflows/deploy_frontend.yml'
 
 env:
   SERVER_IP: shivajshankar1.duckdns.org
