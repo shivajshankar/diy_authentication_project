@@ -52,6 +52,7 @@ jobs:
 
     - name: Copy frontend code to server
       run: |
+        # First, copy all Kubernetes resources
         rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
           --exclude='.git' \
           --exclude='target' \
@@ -59,12 +60,19 @@ jobs:
           --exclude='.idea' \
           --exclude='*.iml' \
           --include='nodejs/loginscreen/**' \
+          --include='deploy/k3s/' \
           --include='deploy/k3s/namespaces/' \
           --include='deploy/k3s/namespaces/*' \
-          --include='deploy/k3s/configs/frontend-*' \
-          --include='deploy/k3s/deployments/frontend-*' \
-          --include='deploy/k3s/services/frontend-*' \
-          --include='deploy/k3s/ingresses/frontend-*' \
+          --include='deploy/k3s/configs/' \
+          --include='deploy/k3s/configs/*' \
+          --include='deploy/k3s/secrets/' \
+          --include='deploy/k3s/secrets/*' \
+          --include='deploy/k3s/deployments/' \
+          --include='deploy/k3s/deployments/*' \
+          --include='deploy/k3s/services/' \
+          --include='deploy/k3s/services/*' \
+          --include='deploy/k3s/ingresses/' \
+          --include='deploy/k3s/ingresses/*' \
           --include='deploy/scripts/cleanup_k3s_images.sh' \
           --exclude='*' \
           . \

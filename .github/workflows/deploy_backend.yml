@@ -52,6 +52,7 @@ jobs:
 
     - name: Copy backend code to server
       run: |
+        # First, copy all Kubernetes resources
         rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
           --exclude='.git' \
           --exclude='node_modules' \
@@ -60,14 +61,19 @@ jobs:
           --include='src/**' \
           --include='pom.xml' \
           --include='Dockerfile.backend' \
+          --include='deploy/k3s/' \
           --include='deploy/k3s/namespaces/' \
           --include='deploy/k3s/namespaces/*' \
-          --include='deploy/k3s/configs/backend-*' \
+          --include='deploy/k3s/configs/' \
+          --include='deploy/k3s/configs/*' \
           --include='deploy/k3s/secrets/' \
           --include='deploy/k3s/secrets/*' \
-          --include='deploy/k3s/deployments/backend-*' \
-          --include='deploy/k3s/services/backend-*' \
-          --include='deploy/k3s/ingresses/backend-*' \
+          --include='deploy/k3s/deployments/' \
+          --include='deploy/k3s/deployments/*' \
+          --include='deploy/k3s/services/' \
+          --include='deploy/k3s/services/*' \
+          --include='deploy/k3s/ingresses/' \
+          --include='deploy/k3s/ingresses/*' \
           --include='deploy/scripts/cleanup_k3s_images.sh' \
           --exclude='*' \
           . \
