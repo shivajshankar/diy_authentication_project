@@ -50,59 +50,23 @@ build_and_import_backend() {
     
     pushd "${context}" > /dev/null || { echo -e "${RED}Failed to change to directory: ${context}${NC}"; return 1; }
     
-    # Check if buildx is available, if not try to install it
-    if ! docker buildx version &>/dev/null; then
-        echo -e "${YELLOW}Docker buildx not found, attempting to install...${NC}"
-        if ! docker buildx install; then
-            echo -e "${YELLOW}Failed to install buildx, falling back to legacy builder${NC}"
-            export DOCKER_BUILDKIT=0
-        else
-            echo -e "${GREEN}Successfully installed buildx${NC}"
-            export DOCKER_BUILDKIT=1
-        fi
-    else
-        export DOCKER_BUILDKIT=1
-    fi
+    # Enable BuildKit with legacy builder for better caching
+    export DOCKER_BUILDKIT=1
     
-    # Set build command based on whether BuildKit is available
-    if [ "$DOCKER_BUILDKIT" = "1" ]; then
-        echo -e "${GREEN}Using BuildKit for Docker build${NC}"
-        BUILD_COMMAND=(
-            docker buildx build
-            --progress=plain
-            --build-arg BUILDKIT_INLINE_CACHE=1
-            -t "${full_image_name}"
-            -f "${dockerfile}"
-            --build-arg SPRING_PROFILES_ACTIVE=prod
-            --build-arg MONGODB_URI="${MONGODB_URI}"
-            --build-arg JWT_SECRET="${JWT_SECRET}"
-            --build-arg JWT_EXPIRATION_MS="${JWT_EXPIRATION_MS}"
-            --build-arg GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID}"
-            --build-arg GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET}"
-            --build-arg APP_URL="${BACKEND_URL}"
-            --build-arg CORS_ALLOWED_ORIGINS="${FRONTEND_URL}"
-            .
-        )
-    else
-        echo -e "${YELLOW}Using legacy Docker builder (slower, no cache)${NC}"
-        BUILD_COMMAND=(
-            docker build
-            -t "${full_image_name}"
-            -f "${dockerfile}"
-            --build-arg SPRING_PROFILES_ACTIVE=prod
-            --build-arg MONGODB_URI="${MONGODB_URI}"
-            --build-arg JWT_SECRET="${JWT_SECRET}"
-            --build-arg JWT_EXPIRATION_MS="${JWT_EXPIRATION_MS}"
-            --build-arg GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID}"
-            --build-arg GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET}"
-            --build-arg APP_URL="${BACKEND_URL}"
-            --build-arg CORS_ALLOWED_ORIGINS="${FRONTEND_URL}"
-            .
-        )
-    fi
-    
-    # Execute the build command
-    if ! "${BUILD_COMMAND[@]}"; then
+    # Build the Docker image with BuildKit
+    if ! docker build \
+        --progress=plain \
+        -t "${full_image_name}" \
+        -f "${dockerfile}" \
+        --build-arg SPRING_PROFILES_ACTIVE=prod \
+        --build-arg MONGODB_URI="${MONGODB_URI}" \
+        --build-arg JWT_SECRET="${JWT_SECRET}" \
+        --build-arg JWT_EXPIRATION_MS="${JWT_EXPIRATION_MS}" \
+        --build-arg GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID}" \
+        --build-arg GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET}" \
+        --build-arg APP_URL="${BACKEND_URL}" \
+        --build-arg CORS_ALLOWED_ORIGINS="${FRONTEND_URL}" \
+        .; then
         echo -e "${RED}Failed to build Docker image${NC}"
         return 1
     fi
