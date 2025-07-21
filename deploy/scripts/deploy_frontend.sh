@@ -181,16 +181,21 @@ main() {
     
     # 6. Restart frontend deployment
     echo -e "\n${GREEN}=== Restarting Frontend Deployment ===${NC}"
-    if kubectl get deployment -n "${NAMESPACE}" -l app=frontend &> /dev/null; then
-        kubectl rollout restart deployment -n "${NAMESPACE}" -l app=frontend
+    if kubectl get deployment -n "${NAMESPACE}" -l app=auth-frontend &> /dev/null; then
+        kubectl rollout restart deployment -n "${NAMESPACE}" -l app=auth-frontend
     else
-        echo -e "${YELLOW}No deployments found with label app=frontend${NC}"
+        echo -e "${YELLOW}No deployments found with label app=auth-frontend${NC}"
+        echo -e "${YELLOW}Available deployments in namespace ${NAMESPACE}:${NC}"
+        kubectl get deployments -n "${NAMESPACE}" || true
     fi
     
     # 7. Verify deployment
     echo -e "\n${GREEN}=== Frontend Deployment Status ===${NC}"
-    kubectl get pods,svc,ingress -n "${NAMESPACE}" -l app=frontend || \
-        echo -e "${YELLOW}No resources found with label app=frontend${NC}"
+    kubectl get pods,svc,ingress -n "${NAMESPACE}" -l app=auth-frontend || {
+        echo -e "${YELLOW}No resources found with label app=auth-frontend${NC}"
+        echo -e "${YELLOW}All resources in namespace ${NAMESPACE}:${NC}"
+        kubectl get all -n "${NAMESPACE}" || true
+    }
     
     # 8. Clean up old images one final time
     cleanup_old_images
