@@ -43,37 +43,31 @@ build_and_import_frontend() {
     
     echo -e "${GREEN}Building ${full_image_name}...${NC}"
     
-    # Change to the context directory
     pushd "${context}" > /dev/null || { echo -e "${RED}Failed to change to directory: ${context}${NC}"; return 1; }
     
-    # Build the Docker image with appropriate build args
-    local build_cmd="docker build --no-cache -t ${full_image_name} -f ${dockerfile}"
-    
-    # Add build args for frontend
-    build_cmd+=" --build-arg REACT_APP_API_URL=\"${BACKEND_URL}/api\""
-    build_cmd+=" --build-arg REACT_APP_ENV=\"production\""
-    build_cmd+=" --build-arg REACT_APP_GOOGLE_AUTH_URL=\"${BACKEND_URL}/oauth2/authorization/google\""
-    
-    build_cmd+=" ."
-    
-    if ! eval "${build_cmd}"; then
-        echo -e "${RED}Error building ${full_image_name}${NC}"
+    # Build the Docker image
+    if ! docker build \
+        --no-cache \
+        -t "${full_image_name}" \
+        -f "${dockerfile}" \
+        --build-arg REACT_APP_API_URL="${BACKEND_URL}/api" \
+        --build-arg REACT_APP_ENV="production" \
+        --build-arg REACT_APP_GOOGLE_AUTH_URL="${BACKEND_URL}/oauth2/authorization/google" \
+        .; then
+        echo -e "${RED}Failed to build frontend Docker image${NC}"
         popd > /dev/null || true
         return 1
     fi
     
-    # Clean up old images before importing new ones
-    cleanup_old_images
+    popd > /dev/null || return 1
     
-    # Import into k3s
-    echo -e "${GREEN}Importing ${full_image_name} into k3s...${NC}"
+    # Import the image into k3s
+    echo -e "\n${GREEN}Importing ${full_image_name} into k3s...${NC}"
     if ! docker save "${full_image_name}" | sudo k3s ctr images import -; then
-        echo -e "${RED}Error importing ${full_image_name} into k3s${NC}"
-        popd > /dev/null || true
+        echo -e "${RED}Failed to import frontend image into k3s${NC}"
         return 1
     fi
     
-    popd > /dev/null || true
     echo -e "${GREEN}Successfully built and imported ${full_image_name}${NC}"
 }
 
@@ -136,52 +130,67 @@ main() {
     echo -e "\n${GREEN}=== Building Frontend ===${NC}"
     build_and_import_frontend
     
-    # Verify deployment file exists
-    if [ ! -f "${K3S_DIR}/deployments/frontend-deployment.yaml" ]; then
-        echo -e "${RED}Frontend deployment file not found in ${K3S_DIR}/deployments/${NC}"
-        exit 1
-    fi
-    
-    # Update image reference in deployment file
-    echo -e "\n${GREEN}Updating frontend image reference...${NC}"
-    sed -i "s|image: .*|image: ${FRONTEND_IMAGE}:latest|" "${K3S_DIR}/deployments/frontend-deployment.yaml"
+    # List all YAML files for debugging
+    echo -e "\n${YELLOW}=== Available YAML Files ===${NC}"
+    find "${K3S_DIR}" -type f \( -name "*.yaml" -o -name "*.yml" \) -print0 | sort -z | xargs -0 ls -la
+    echo -e "${YELLOW}============================${NC}\n"
     
     # Apply Kubernetes configurations
     echo -e "\n${GREEN}=== Applying Frontend Kubernetes Configurations ===${NC}"
     
     # 1. Create namespace
-    apply_if_exists "namespace" "${K3S_DIR}/namespaces/"
+    if [ -f "${K3S_DIR}/namespaces/auth-namespace.yaml" ]; then
+        echo -e "${GREEN}Applying auth namespace...${NC}"
+        kubectl apply -f "${K3S_DIR}/namespaces/auth-namespace.yaml"
+    else
+        echo -e "${YELLOW}Auth namespace file not found at ${K3S_DIR}/namespaces/auth-namespace.yaml${NC}"
+    fi
     
-    # 2. Apply ConfigMaps (only frontend related)
-    if [ -d "${K3S_DIR}/configs/" ]; then
-        echo -e "${GREEN}Applying frontend ConfigMaps...${NC}"
-        for file in "${K3S_DIR}/configs/"*-frontend-*; do
-            if [ -f "$file" ]; then
-                kubectl apply -f "$file"
-            fi
-        done
+    # 2. Apply ConfigMaps
+    if [ -f "${K3S_DIR}/configs/frontend-config.yaml" ]; then
+        echo -e "${GREEN}Applying frontend config...${NC}"
+        kubectl apply -f "${K3S_DIR}/configs/frontend-config.yaml"
+    else
+        echo -e "${YELLOW}Frontend config file not found at ${K3S_DIR}/configs/frontend-config.yaml${NC}"
     fi
     
     # 3. Deploy frontend
-    apply_if_exists "frontend deployment" "${K3S_DIR}/deployments/frontend-deployment.yaml"
+    if [ -f "${K3S_DIR}/deployments/frontend-deployment.yaml" ]; then
+        echo -e "${GREEN}Applying frontend deployment...${NC}"
+        kubectl apply -f "${K3S_DIR}/deployments/frontend-deployment.yaml"
+    else
+        echo -e "${RED}Frontend deployment file not found at ${K3S_DIR}/deployments/frontend-deployment.yaml${NC}"
+        exit 1
+    fi
     
     # 4. Create frontend service
     if [ -f "${K3S_DIR}/services/frontend-service.yaml" ]; then
-        apply_if_exists "frontend service" "${K3S_DIR}/services/frontend-service.yaml"
+        echo -e "${GREEN}Applying frontend service...${NC}"
+        kubectl apply -f "${K3S_DIR}/services/frontend-service.yaml"
+    else
+        echo -e "${YELLOW}Frontend service file not found at ${K3S_DIR}/services/frontend-service.yaml${NC}"
     fi
     
-    # 5. Set up ingress (only if it contains frontend rules)
-    if [ -f "${K3S_DIR}/ingresses/frontend-ingress.yaml" ]; then
-        apply_if_exists "frontend ingress" "${K3S_DIR}/ingresses/frontend-ingress.yaml"
+    # 5. Set up ingress
+    if [ -f "${K3S_DIR}/ingresses/auth-ingress.yaml" ]; then
+        echo -e "${GREEN}Applying auth ingress...${NC}"
+        kubectl apply -f "${K3S_DIR}/ingresses/auth-ingress.yaml"
+    else
+        echo -e "${YELLOW}Auth ingress file not found at ${K3S_DIR}/ingresses/auth-ingress.yaml${NC}"
     fi
     
     # 6. Restart frontend deployment
     echo -e "\n${GREEN}=== Restarting Frontend Deployment ===${NC}"
-    kubectl rollout restart deployment -n "${NAMESPACE}" -l app=frontend
+    if kubectl get deployment -n "${NAMESPACE}" -l app=frontend &> /dev/null; then
+        kubectl rollout restart deployment -n "${NAMESPACE}" -l app=frontend
+    else
+        echo -e "${YELLOW}No deployments found with label app=frontend${NC}"
+    fi
     
     # 7. Verify deployment
     echo -e "\n${GREEN}=== Frontend Deployment Status ===${NC}"
-    kubectl get pods,svc,ingress -n "${NAMESPACE}" -l app=frontend
+    kubectl get pods,svc,ingress -n "${NAMESPACE}" -l app=frontend || \
+        echo -e "${YELLOW}No resources found with label app=frontend${NC}"
     
     # 8. Clean up old images one final time
     cleanup_old_images
